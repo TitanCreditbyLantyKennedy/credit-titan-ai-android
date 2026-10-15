@@ -1,0 +1,1 @@
+Credit Titan AI Phase 2 starter. Extract this ZIP and upload the contained files and folders to the ROOT of the GitHub repository, preserving .github/workflows and app/src/main paths. GitHub Actions builds the debug APK. All credit data is fictional. Creator, Developer, Designer: Lanty Kennedy.
