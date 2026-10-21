@@ -50,6 +50,7 @@ public class MainActivity extends Activity {
         content=new LinearLayout(this);content.setOrientation(1);content.setPadding(dp(18),dp(12),dp(18),dp(12));scroll.addView(content);
         root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
         card(page,"DEMO MODE — Illustrative data, not a live credit report.");
+        if(page.equals("Dashboard")) action("Open FICO Booster Plus",()->show("FICO Booster Plus"));
         switch(page){
             case "Dashboard":
                 card("Sample credit score: 682","This score is fictional and does not update from FICO or any credit bureau.");
@@ -99,7 +100,7 @@ public class MainActivity extends Activity {
                         disclaimer.setPadding(0,dp(4),0,dp(8));
                         guidanceBox.addView(disclaimer);
                         dialogScroll.addView(guidanceBox);
-                        dialogBody.addView(dialogScroll,new LinearLayout.LayoutParams(-1,-2));
+                        dialogBody.addView(dialogScroll,new LinearLayout.LayoutParams(-1,dp(240)));
                         android.app.AlertDialog dialog=new android.app.AlertDialog.Builder(this)
                             .setTitle(boost[n]).setView(dialogBody)
                             .setNegativeButton("Close",null).create();
