@@ -14,7 +14,10 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - uses: android-actions/setup-android@v3
+      - name: Verify Android SDK on runner
+        run: |
+          test -d "$ANDROID_HOME" || { echo 'Android SDK missing'; exit 1; }
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
