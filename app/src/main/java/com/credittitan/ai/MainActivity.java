@@ -9,7 +9,7 @@ import android.view.Gravity;
 import android.widget.*;
 
 public class MainActivity extends Activity {
-    private final int navy=Color.rgb(9,20,42), panel=Color.rgb(22,39,70), cyan=Color.rgb(83,211,240), gold=Color.rgb(240,185,78);
+    private final int navy=Color.rgb(9,20,42), panel=Color.rgb(22,39,70), cyan=Color.rgb(83,211,240), silver=Color.rgb(190,207,224), iceBlue=Color.rgb(100,215,255);
     private final String[] pages={"Dashboard","Reports","Disputes","AI Coach","Bureaus","Progress"};
     private LinearLayout content;
     @Override public void onCreate(Bundle state){super.onCreate(state);show("Dashboard");}
@@ -18,13 +18,13 @@ public class MainActivity extends Activity {
     private TextView text(String value,int size,int color){TextView t=new TextView(this);t.setText(value);t.setTextSize(size);t.setTextColor(color);t.setPadding(dp(12),dp(10),dp(12),dp(10));return t;}
     private void card(String heading,String body){
         LinearLayout box=new LinearLayout(this);box.setOrientation(1);box.setPadding(dp(10),dp(8),dp(10),dp(10));box.setBackground(shape(panel,18));
-        TextView h=text(heading,19,gold);h.setTypeface(null,Typeface.BOLD);box.addView(h);
+        TextView h=text(heading,19,iceBlue);h.setTypeface(null,Typeface.BOLD);box.addView(h);
         box.addView(text(body,15,Color.WHITE));
         LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,-2);p.setMargins(0,0,0,dp(14));content.addView(box,p);
     }
     private void show(String page){
         LinearLayout root=new LinearLayout(this);root.setOrientation(1);root.setBackgroundColor(navy);
-        TextView brand=text("◆  CREDIT TITAN AI",24,gold);brand.setGravity(Gravity.CENTER);brand.setTypeface(null,Typeface.BOLD);root.addView(brand);
+        TextView brand=text("◆  CREDIT TITAN AI",24,silver);brand.setGravity(Gravity.CENTER);brand.setTypeface(null,Typeface.BOLD);root.addView(brand);
         TextView tagline=text("Credit Repair • Builder • Guardian",13,cyan);tagline.setGravity(Gravity.CENTER);root.addView(tagline);
         ScrollView scroll=new ScrollView(this);scroll.setFillViewport(true);
         content=new LinearLayout(this);content.setOrientation(1);content.setPadding(dp(18),dp(18),dp(18),dp(8));scroll.addView(content);
@@ -45,7 +45,7 @@ public class MainActivity extends Activity {
         LinearLayout nav=new LinearLayout(this);nav.setPadding(dp(8),dp(6),dp(8),dp(6));
         for(String item:pages){
             TextView tab=text(item,13,item.equals(page)?navy:Color.WHITE);tab.setGravity(Gravity.CENTER);
-            tab.setBackground(shape(item.equals(page)?gold:panel,14));
+            tab.setBackground(shape(item.equals(page)?iceBlue:panel,14));
             LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-2,dp(46));p.setMargins(dp(3),0,dp(3),0);nav.addView(tab,p);
             tab.setOnClickListener(v->show(item));
         }
