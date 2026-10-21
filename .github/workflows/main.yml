@@ -1,46 +1,138 @@
-name: Credit Titan AI Verified APK
+name: Credit Titan Android validation
 on:
   push:
     branches: [main]
+  pull_request:
   workflow_dispatch:
+    inputs:
+      validate_release:
+        description: 'Validate secret-backed release against the approved previous APK (no publishing)'
+        type: boolean
+        default: false
 permissions:
   contents: read
+
 jobs:
-  build:
+  upgrade-tests:
+    name: Disposable-key upgrade tests (API ${{ matrix.api }})
     runs-on: ubuntu-latest
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        api: [24, 35]
     steps:
-      - name: Checkout project
-        uses: actions/checkout@v4
-      - name: Set up Java 17
-        uses: actions/setup-java@v4
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+      - uses: android-actions/setup-android@v3
+      - run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+      - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-      - name: Build signed debug APK
-        run: gradle --no-daemon :app:assembleDebug --stacktrace
-      - name: Verify APK before upload
-        shell: bash
+          cache-disabled: true
+      - name: Test APK policy
+        run: python3 -m unittest discover -s tests -v
+      - name: Check source version on pull requests
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: python3 scripts/check_version.py --base-ref "$BASE_SHA"
+      - name: Build disposable fixtures (never distributed)
+        run: bash scripts/build_fixtures.sh
+      - name: Verify fixture metadata and continuity
         run: |
-          set -euo pipefail
-          APK=app/build/outputs/apk/debug/app-debug.apk
-          test -s "$APK"
-          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
-          test -n "$SDK"
-          BUILD_TOOLS=$(find "$SDK/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)
-          test -x "$BUILD_TOOLS/apksigner"
-          "$BUILD_TOOLS/apksigner" verify --verbose --print-certs "$APK"
-          "$BUILD_TOOLS/aapt" dump badging "$APK" | tee apk-info.txt
-          grep -q "package: name='com.credittitanai.app'" apk-info.txt
-          grep -q "launchable-activity:" apk-info.txt
-          unzip -t "$APK"
-          sha256sum "$APK"
-      - name: Upload verified Android APK
+          CERT=$(python3 -c 'import sys; sys.path.insert(0,"scripts"); from verify_apk import inspect; print(inspect(".validation/previous.apk")["certificate_sha256"])')
+          python3 scripts/verify_apk.py .validation/candidate.apk --previous .validation/previous.apk --certificate "$CERT" --version-code 3
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          arch: x86_64
+          disable-animations: true
+          script: python3 scripts/test_upgrade.py --previous .validation/previous.apk --candidate .validation/candidate.apk --mismatch .validation/mismatch.apk --probe .validation/probe.apk
+      - name: Remove test keys
+        if: always()
+        run: rm -rf .validation
+
+  release-validation:
+    # No secrets on pull requests, branch pushes, or untrusted refs.
+    if: github.event_name == 'workflow_dispatch' && inputs.validate_release && github.ref == 'refs/heads/main'
+    needs: upgrade-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    environment: release-signing
+    concurrency:
+      group: credit-titan-release-validation
+      cancel-in-progress: false
+    env:
+      ANDROID_BUILD_TOOLS: '35.0.0'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+          cache-disabled: true
+      - name: Load approved baseline and signing identity
+        env:
+          KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          PREVIOUS_APK_URL: ${{ vars.PREVIOUS_APK_URL }}
+          PREVIOUS_APK_SHA256: ${{ vars.PREVIOUS_APK_SHA256 }}
+          RELEASE_CERT_SHA256: ${{ vars.RELEASE_CERT_SHA256 }}
+        run: python3 scripts/prepare_release.py
+      - name: Build signed release and test probe
+        env:
+          TITAN_KEYSTORE_PATH: ${{ runner.temp }}/credit-titan-release.jks
+          TITAN_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          TITAN_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          TITAN_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: |
+          gradle --no-daemon :app:assembleRelease :app:assembleReleaseAndroidTest :app:lintRelease
+          cp app/build/outputs/apk/release/app-release.apk .validation/candidate.apk
+          cp app/build/outputs/apk/androidTest/release/app-release-androidTest.apk .validation/probe.apk
+      - name: Verify release identity, version, archive, launcher
+        env:
+          RELEASE_CERT_SHA256: ${{ vars.RELEASE_CERT_SHA256 }}
+        run: |
+          CODE=$(sed -n 's/^versionCode=//p' version.properties)
+          python3 scripts/verify_apk.py .validation/candidate.apk --previous .validation/previous.apk --certificate "$RELEASE_CERT_SHA256" --version-code "$CODE" > .validation/verification.json
+          bash scripts/mismatch_fixture.sh
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          disable-animations: true
+          script: python3 scripts/test_upgrade.py --previous .validation/previous.apk --candidate .validation/candidate.apk --mismatch .validation/mismatch.apk --probe .validation/probe.apk
+      - name: Retain validated candidate for review only
         uses: actions/upload-artifact@v4
         with:
-          name: CreditTitanAI-Verified-Debug-APK
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: CreditTitanAI-release-candidate-${{ github.sha }}-${{ github.run_id }}
+          path: |
+            .validation/candidate.apk
+            .validation/verification.json
           if-no-files-found: error
+          retention-days: 14
+      - name: Remove signing material and fixtures
+        if: always()
+        run: |
+          rm -f "$RUNNER_TEMP/credit-titan-release.jks"
+          rm -rf .validation

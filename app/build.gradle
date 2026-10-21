@@ -2,20 +2,52 @@ plugins {
     id 'com.android.application'
 }
 
+def versions = new Properties()
+rootProject.file('version.properties').withInputStream { versions.load(it) }
+def codeText = System.getenv('TITAN_VERSION_CODE') ?: versions.getProperty('versionCode')
+if (!(codeText ==~ /[1-9][0-9]*/) || codeText.toLong() > 2100000000L) {
+    throw new GradleException('versionCode must be an integer in 1..2100000000')
+}
+def signingNames = ['TITAN_KEYSTORE_PATH', 'TITAN_STORE_PASSWORD', 'TITAN_KEY_ALIAS', 'TITAN_KEY_PASSWORD']
+def signingReady = signingNames.every { System.getenv(it)?.trim() }
+
 android {
     namespace 'com.credittitan.ai'
     compileSdk 35
-
     defaultConfig {
         applicationId 'com.credittitanai.app'
         minSdk 24
         targetSdk 35
-        versionCode 2
-        versionName '1.0.1'
+        versionCode codeText.toInteger()
+        versionName versions.getProperty('versionName')
+        testInstrumentationRunner 'com.credittitan.ai.UpgradeProbe'
     }
-
+    signingConfigs {
+        release {
+            if (signingReady) {
+                storeFile file(System.getenv('TITAN_KEYSTORE_PATH'))
+                storePassword System.getenv('TITAN_STORE_PASSWORD')
+                keyAlias System.getenv('TITAN_KEY_ALIAS')
+                keyPassword System.getenv('TITAN_KEY_PASSWORD')
+            }
+        }
+    }
+    buildTypes {
+        release {
+            debuggable false
+            signingConfig signingConfigs.release
+        }
+    }
+    testBuildType 'release'
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+// Never fall back to a runner's random debug key for a release task.
+gradle.taskGraph.whenReady { graph ->
+    if (graph.allTasks.any { it.project == project && it.name.toLowerCase().contains('release') } && !signingReady) {
+        throw new GradleException('Release signing requires all four TITAN signing environment variables; no debug fallback.')
     }
 }
