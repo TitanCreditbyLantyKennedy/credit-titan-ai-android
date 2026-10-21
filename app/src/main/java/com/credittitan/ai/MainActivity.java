@@ -10,7 +10,7 @@ import android.widget.*;
 
 public class MainActivity extends Activity {
     private final int navy=Color.rgb(9,20,42), panel=Color.rgb(22,39,70), cyan=Color.rgb(83,211,240), silver=Color.rgb(200,215,230);
-    private final String[] pages={"Dashboard","Reports","Disputes","AI Coach","Bureaus","Progress"};
+    private final String[] pages={"Dashboard","Reports","Disputes","AI Coach","FICO Booster Plus","Bureaus","Progress"};
     private LinearLayout content;
     private android.content.SharedPreferences prefs;
     @Override public void onCreate(Bundle state){super.onCreate(state);prefs=getSharedPreferences("titan_local",MODE_PRIVATE);show("Dashboard");}
@@ -59,10 +59,18 @@ public class MainActivity extends Activity {
                 card("Your report notes",prefs.getString("report_notes","No notes saved yet."));
                 action("Add report notes",()->input("Credit report notes","report_notes","Record possible errors, dates, and account details. Avoid sensitive identifiers."));
                 break;
-            case "Disputes":card("Dispute center","Draft → Submitted → Response received\\nNo disputes have been filed through this app.");
+            case "Disputes":card("Dispute center","Draft → Submitted → Response received\nNo disputes have been filed through this app.");
                 card("Your draft",prefs.getString("dispute_draft","No draft saved yet."));
                 action("Write a dispute draft",()->input("Dispute draft","dispute_draft","Describe the specific inaccurate item and why it is incorrect."));
                 action("Important dispute information",()->note("Disputes","This app saves a draft only. It does not send disputes to a credit bureau or promise removal of accurate information."));
+                break;
+            case "FICO Booster Plus":
+                card("60-Day Credit Action Plan","Educational checklist only. No live FICO score, score forecast, bureau connection, or automatic account changes.");
+                String[] boost={ "Review revolving balances and reporting dates", "Check for late payments and set reminders", "Review credit reports for supportable inaccuracies", "Evaluate credit-limit increase inquiry policies", "Review effects before opening or closing accounts", "Recheck reports and scores using the same scoring model" };
+                for(int i=0;i<boost.length;i++){final int n=i;boolean done=prefs.getBoolean("boost"+i,false);
+                    action((done?"✓  ":"○  ")+boost[i],()->{prefs.edit().putBoolean("boost"+n,!prefs.getBoolean("boost"+n,false)).apply();show("FICO Booster Plus");});
+                }
+                action("Important score information",()->note("FICO Booster Plus","Actions may help credit health, but no FICO score increase or 60-day result is guaranteed. This demo does not access real credit reports."));
                 break;
             case "AI Coach":card("Credit education","Review your reports for errors, make payments on time, and manage revolving balances. Live AI is not connected.");break;
             case "Bureaus":card("Credit bureaus","Experian: Not connected\nEquifax: Not connected\nTransUnion: Not connected");break;
