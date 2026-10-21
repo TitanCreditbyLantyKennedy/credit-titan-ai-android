@@ -67,8 +67,32 @@ public class MainActivity extends Activity {
             case "FICO Booster Plus":
                 card("60-Day Credit Action Plan","Educational checklist only. No live FICO score, score forecast, bureau connection, or automatic account changes.");
                 String[] boost={ "Review revolving balances and reporting dates", "Check for late payments and set reminders", "Review credit reports for supportable inaccuracies", "Evaluate credit-limit increase inquiry policies", "Review effects before opening or closing accounts", "Recheck reports and scores using the same scoring model" };
-                for(int i=0;i<boost.length;i++){final int n=i;boolean done=prefs.getBoolean("boost"+i,false);
-                    action((done?"✓  ":"○  ")+boost[i],()->{prefs.edit().putBoolean("boost"+n,!prefs.getBoolean("boost"+n,false)).apply();show("FICO Booster Plus");});
+                String[] guidance={
+                    "Review each credit card balance, credit limit, and statement closing date. Utilization is the reported balance divided by the limit. Paying down balances may help, but results depend on the scoring model and the rest of the report.",
+                    "Check each account's due date and payment history. Set payment reminders or automatic minimum payments when appropriate. Contact the lender promptly if a payment may be missed.",
+                    "Get reports from the three bureaus and compare account details. Dispute only information you reasonably believe is inaccurate, and keep copies of supporting records.",
+                    "Ask your card issuer whether a credit-limit increase request requires a hard inquiry. A higher limit can reduce utilization if spending stays the same, but approval and score effects are not guaranteed.",
+                    "Consider account age, utilization, fees, and possible hard inquiries before opening or closing accounts. Avoid making changes solely to chase a predicted score increase.",
+                    "Recheck your reports after updates have had time to post. Compare scores from the same scoring model and version; different score types are not directly comparable."
+                };
+                for(int i=0;i<boost.length;i++){
+                    final int n=i;
+                    boolean done=prefs.getBoolean("boost"+i,false);
+                    action("View: "+boost[i],()->{
+                        new android.app.AlertDialog.Builder(this)
+                            .setTitle(boost[n])
+                            .setMessage(guidance[n]+"\\n\\nStatus: "+(prefs.getBoolean("boost"+n,false)?"Completed":"Not completed")+"\\n\\nEducational information only; no live credit data is connected.")
+                            .setNegativeButton("Close",null)
+                            .setNeutralButton("Mark not done",(d,w)->{
+                                prefs.edit().putBoolean("boost"+n,false).apply();
+                                show("FICO Booster Plus");
+                            })
+                            .setPositiveButton("Mark completed",(d,w)->{
+                                prefs.edit().putBoolean("boost"+n,true).apply();
+                                show("FICO Booster Plus");
+                            }).show();
+                    });
+                    card(done?"✓ Completed":"○ Not completed","Tap View above to read guidance or change completion status.");
                 }
                 action("Important score information",()->note("FICO Booster Plus","Actions may help credit health, but no FICO score increase or 60-day result is guaranteed. This demo does not access real credit reports."));
                 break;
