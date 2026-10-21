@@ -81,18 +81,55 @@ public class MainActivity extends Activity {
                     final int n=i;
                     boolean done=prefs.getBoolean("boost"+i,false);
                     action((done?"✓  ":"○  ")+boost[i],()->{
-                        new android.app.AlertDialog.Builder(this)
-                            .setTitle(boost[n])
-                            .setMessage(guidance[n]+"\n\nStatus: "+(prefs.getBoolean("boost"+n,false)?"Completed":"Not completed")+"\\n\\nEducational information only; no live credit data is connected.")
-                            .setNegativeButton("Close",null)
-                            .setNeutralButton("Mark not done",(d,w)->{
-                                prefs.edit().putBoolean("boost"+n,false).apply();
-                                show("FICO Booster Plus");
-                            })
-                            .setPositiveButton("Mark completed",(d,w)->{
-                                prefs.edit().putBoolean("boost"+n,true).apply();
-                                show("FICO Booster Plus");
-                            }).show();
+                        LinearLayout dialogBody=new LinearLayout(this);
+                        dialogBody.setOrientation(LinearLayout.VERTICAL);
+                        dialogBody.setPadding(dp(20),dp(8),dp(20),dp(8));
+                        ScrollView dialogScroll=new ScrollView(this);
+                        dialogScroll.setFillViewport(false);
+                        LinearLayout guidanceBox=new LinearLayout(this);
+                        guidanceBox.setOrientation(LinearLayout.VERTICAL);
+                        TextView instructions=text(guidance[n],16,navy);
+                        instructions.setPadding(0,dp(8),0,dp(12));
+                        guidanceBox.addView(instructions);
+                        TextView status=text("Status: "+(prefs.getBoolean("boost"+n,false)?"Completed":"Not completed"),14,navy);
+                        status.setTypeface(null,Typeface.BOLD);
+                        status.setPadding(0,dp(4),0,dp(8));
+                        guidanceBox.addView(status);
+                        TextView disclaimer=text("Educational information only; no live credit data is connected.",13,Color.DKGRAY);
+                        disclaimer.setPadding(0,dp(4),0,dp(8));
+                        guidanceBox.addView(disclaimer);
+                        dialogScroll.addView(guidanceBox);
+                        dialogBody.addView(dialogScroll,new LinearLayout.LayoutParams(-1,-2));
+                        android.app.AlertDialog dialog=new android.app.AlertDialog.Builder(this)
+                            .setTitle(boost[n]).setView(dialogBody)
+                            .setNegativeButton("Close",null).create();
+                        LinearLayout controls=new LinearLayout(this);
+                        controls.setOrientation(LinearLayout.VERTICAL);
+                        TextView markDone=text("✓  MARK COMPLETED",15,navy);
+                        markDone.setGravity(Gravity.CENTER);
+                        markDone.setTypeface(null,Typeface.BOLD);
+                        markDone.setBackground(shape(cyan,12));
+                        controls.addView(markDone,new LinearLayout.LayoutParams(-1,dp(48)));
+                        TextView markUndone=text("MARK NOT DONE",14,navy);
+                        markUndone.setGravity(Gravity.CENTER);
+                        controls.addView(markUndone,new LinearLayout.LayoutParams(-1,dp(48)));
+                        dialogBody.addView(controls);
+                        markDone.setOnClickListener(v->{
+                            prefs.edit().putBoolean("boost"+n,true).apply();
+                            dialog.dismiss();show("FICO Booster Plus");
+                        });
+                        markUndone.setOnClickListener(v->{
+                            prefs.edit().putBoolean("boost"+n,false).apply();
+                            dialog.dismiss();show("FICO Booster Plus");
+                        });
+                        dialog.setOnShowListener(d->{
+                            if(dialog.getWindow()!=null){
+                                dialog.getWindow().setBackgroundDrawable(shape(Color.WHITE,18));
+                                dialog.getWindow().setLayout((int)(getResources().getDisplayMetrics().widthPixels*0.90f),-2);
+                            }
+                            dialog.getButton(android.app.AlertDialog.BUTTON_NEGATIVE).setTextColor(navy);
+                        });
+                        dialog.show();
                     });
 
                 }
