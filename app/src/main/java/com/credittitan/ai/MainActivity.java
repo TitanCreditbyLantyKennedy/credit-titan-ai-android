@@ -24,9 +24,9 @@ public class MainActivity extends Activity {
         LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,-2);p.setMargins(0,0,0,dp(14));content.addView(box,p);
     }
     private void action(String label, Runnable task){
-        TextView button=text(label,15,navy);button.setGravity(Gravity.CENTER);
+        TextView button=text(label,15,navy);button.setGravity(Gravity.CENTER);button.setMinHeight(dp(54));button.setPadding(dp(16),dp(12),dp(16),dp(12));
         button.setTypeface(null,Typeface.BOLD);button.setBackground(shape(cyan,14));
-        LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(48));lp.setMargins(0,0,0,dp(14));
+        LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.setMargins(0,0,0,dp(14));
         content.addView(button,lp);button.setOnClickListener(v->task.run());
     }
     private void note(String title,String message){
@@ -43,11 +43,11 @@ public class MainActivity extends Activity {
             }).show();
     }
     private void show(String page){
-        LinearLayout root=new LinearLayout(this);root.setOrientation(1);root.setBackgroundColor(navy);
+        LinearLayout root=new LinearLayout(this);root.setOrientation(1);root.setBackgroundColor(navy);root.setFitsSystemWindows(true);
         TextView brand=text("◆  CREDIT TITAN AI",24,silver);brand.setGravity(Gravity.CENTER);brand.setTypeface(null,Typeface.BOLD);root.addView(brand);
         TextView tagline=text("Credit Repair • Builder • Guardian",13,cyan);tagline.setGravity(Gravity.CENTER);root.addView(tagline);
         ScrollView scroll=new ScrollView(this);scroll.setFillViewport(true);
-        content=new LinearLayout(this);content.setOrientation(1);content.setPadding(dp(18),dp(18),dp(18),dp(8));scroll.addView(content);
+        content=new LinearLayout(this);content.setOrientation(1);content.setPadding(dp(18),dp(12),dp(18),dp(12));scroll.addView(content);
         root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
         card(page,"DEMO MODE — Illustrative data, not a live credit report.");
         switch(page){
@@ -75,13 +75,15 @@ public class MainActivity extends Activity {
                     "Consider account age, utilization, fees, and possible hard inquiries before opening or closing accounts. Avoid making changes solely to chase a predicted score increase.",
                     "Recheck your reports after updates have had time to post. Compare scores from the same scoring model and version; different score types are not directly comparable."
                 };
+                int completed=0;for(int j=0;j<boost.length;j++)if(prefs.getBoolean("boost"+j,false))completed++;
+                card("Your action plan progress",completed+" of "+boost.length+" steps completed. Tap any step to read its guidance.");
                 for(int i=0;i<boost.length;i++){
                     final int n=i;
                     boolean done=prefs.getBoolean("boost"+i,false);
-                    action("View: "+boost[i],()->{
+                    action((done?"✓  ":"○  ")+boost[i],()->{
                         new android.app.AlertDialog.Builder(this)
                             .setTitle(boost[n])
-                            .setMessage(guidance[n]+"\\n\\nStatus: "+(prefs.getBoolean("boost"+n,false)?"Completed":"Not completed")+"\\n\\nEducational information only; no live credit data is connected.")
+                            .setMessage(guidance[n]+"\n\nStatus: "+(prefs.getBoolean("boost"+n,false)?"Completed":"Not completed")+"\\n\\nEducational information only; no live credit data is connected.")
                             .setNegativeButton("Close",null)
                             .setNeutralButton("Mark not done",(d,w)->{
                                 prefs.edit().putBoolean("boost"+n,false).apply();
@@ -92,7 +94,7 @@ public class MainActivity extends Activity {
                                 show("FICO Booster Plus");
                             }).show();
                     });
-                    card(done?"✓ Completed":"○ Not completed","Tap View above to read guidance or change completion status.");
+
                 }
                 action("Important score information",()->note("FICO Booster Plus","Actions may help credit health, but no FICO score increase or 60-day result is guaranteed. This demo does not access real credit reports."));
                 break;
@@ -104,7 +106,7 @@ public class MainActivity extends Activity {
                     action((done?"✓  ":"○  ")+goals[i],()->{prefs.edit().putBoolean("goal"+n,!prefs.getBoolean("goal"+n,false)).apply();show("Progress");});
                 }break;
         }
-        HorizontalScrollView navScroll=new HorizontalScrollView(this);navScroll.setHorizontalScrollBarEnabled(false);
+        HorizontalScrollView navScroll=new HorizontalScrollView(this);navScroll.setHorizontalScrollBarEnabled(false);navScroll.setFillViewport(false);
         LinearLayout nav=new LinearLayout(this);nav.setPadding(dp(8),dp(6),dp(8),dp(6));
         for(String item:pages){
             TextView tab=text(item,13,item.equals(page)?navy:Color.WHITE);tab.setGravity(Gravity.CENTER);
@@ -113,7 +115,7 @@ public class MainActivity extends Activity {
             tab.setOnClickListener(v->show(item));
         }
         navScroll.addView(nav);root.addView(navScroll);
-        TextView credit=text("Lanty Kennedy • Creator, Developer & Designer",11,cyan);credit.setGravity(Gravity.CENTER);root.addView(credit);
+        TextView credit=text("Lanty Kennedy • Creator, Developer & Designer",11,cyan);credit.setGravity(Gravity.CENTER);credit.setPadding(dp(8),dp(8),dp(8),dp(12));root.addView(credit);
         setContentView(root);
     }
 }
