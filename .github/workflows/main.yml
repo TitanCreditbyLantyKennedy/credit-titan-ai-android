@@ -1,8 +1,10 @@
-name: Credit Titan AI Android APK
+name: Credit Titan AI Verified APK
 on:
   push:
     branches: [main]
   workflow_dispatch:
+permissions:
+  contents: read
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -16,11 +18,29 @@ jobs:
           java-version: '17'
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
-      - name: Build debug APK
-        run: gradle assembleDebug --stacktrace
-      - name: Upload Android APK
+        with:
+          gradle-version: '8.9'
+      - name: Build signed debug APK
+        run: gradle --no-daemon :app:assembleDebug --stacktrace
+      - name: Verify APK before upload
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK=app/build/outputs/apk/debug/app-debug.apk
+          test -s "$APK"
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          test -n "$SDK"
+          BUILD_TOOLS=$(find "$SDK/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)
+          test -x "$BUILD_TOOLS/apksigner"
+          "$BUILD_TOOLS/apksigner" verify --verbose --print-certs "$APK"
+          "$BUILD_TOOLS/aapt" dump badging "$APK" | tee apk-info.txt
+          grep -q "package: name='com.credittitanai.app'" apk-info.txt
+          grep -q "launchable-activity:" apk-info.txt
+          unzip -t "$APK"
+          sha256sum "$APK"
+      - name: Upload verified Android APK
         uses: actions/upload-artifact@v4
         with:
-          name: CreditTitanAI-Debug-APK
-          path: app/build/outputs/apk/debug/*.apk
+          name: CreditTitanAI-Verified-Debug-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
