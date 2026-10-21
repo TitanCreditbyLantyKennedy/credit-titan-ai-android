@@ -12,6 +12,8 @@ public class MainActivity extends Activity {
     private LinearLayout content;
     private int balance=960, limit=3000;
     private boolean disputeDraft=false;
+    private int demoScore(){int utilization=(int)Math.round(100.0*balance/limit);return Math.max(600,Math.min(730,682+(32-utilization)/2));}
+    private String demoScoreNote(){return "Educational illustration only. This number is NOT a FICO score, a credit-bureau score, or a prediction. The simplified scenario changes only with utilization; real scoring uses many factors."; }
     private int dp(int value){return (int)(getResources().getDisplayMetrics().density*value+0.5f);}
     @Override public void onCreate(Bundle state){super.onCreate(state);show(0);}
     private TextView text(String value,int size,int color){
@@ -48,7 +50,7 @@ public class MainActivity extends Activity {
     private void render(int index){
         switch(index){
             case 0:
-                add("Illustrative credit score: 682","This is not a FICO score or a live credit report.");
+                add("Illustrative score index: "+demoScore(),demoScoreNote());
                 add("Your next steps","Explore sample reports, practice utilization planning, and draft a demonstration dispute.");
                 action("Open report analyzer",()->show(1));
                 action("Plan credit utilization",()->show(5));
@@ -79,10 +81,13 @@ public class MainActivity extends Activity {
             case 5:
                 int pct=(int)Math.round(100.0*balance/limit);
                 add("Interactive utilization planner","Sample balance: $"+balance+" | Sample limit: $"+limit+" | Utilization: "+pct+"%");
+                TextView scoreDisplay=text("Illustrative score index: "+demoScore(),22,cyan);content.addView(scoreDisplay);
+                TextView utilizationDisplay=text("Utilization: "+pct+"%",17,white);content.addView(utilizationDisplay);
+                content.addView(text(demoScoreNote(),13,white));
                 add("Adjust fictional balance","Move the slider to explore how utilization changes. This does not predict a credit score.");
                 SeekBar slider=new SeekBar(this);slider.setMax(limit);slider.setProgress(balance);
                 slider.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){
-                    public void onProgressChanged(SeekBar s,int p,boolean fromUser){balance=p;}
+                    public void onProgressChanged(SeekBar s,int p,boolean fromUser){balance=p;scoreDisplay.setText("Illustrative score index: "+demoScore());utilizationDisplay.setText("Utilization: "+(int)Math.round(100.0*balance/limit)+"%");}
                     public void onStartTrackingTouch(SeekBar s){}
                     public void onStopTrackingTouch(SeekBar s){show(5);}
                 });
