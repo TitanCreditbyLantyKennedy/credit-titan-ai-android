@@ -3,6 +3,7 @@
     <application
         android:allowBackup="false"
         android:label="Credit Titan AI"
+        android:icon="@drawable/ic_titan_shield"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
         <activity
