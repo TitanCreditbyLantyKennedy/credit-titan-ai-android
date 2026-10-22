@@ -135,13 +135,26 @@ final class UiChecks {
         String draft = test.getTargetContext().getSharedPreferences("titan_local", 0).getString("dispute_draft", "");
         if (!draft.contains("To: Equifax") || !draft.contains("My statement shows")) throw new AssertionError("Draft generation failed");
         click("Edit dispute draft"); set("draft", "Unsaved draft survives recreation.");
-        Instrumentation.ActivityMonitor monitor = test.addMonitor("com.credittitan.ai.MainActivity", null, false);
         Activity previous = activity;
         onMain(previous::recreate);
-        Activity recreated = monitor.waitForActivityWithTimeout(5000);
-        if (recreated == null) throw new AssertionError("Activity did not recreate");
-        if (recreated == previous) throw new AssertionError("Activity monitor returned the destroyed instance");
-        activity = recreated; active = activity; test.removeMonitor(monitor); test.waitForIdleSync(); SystemClock.sleep(300);
+        // Android 7 ActivityMonitor can report the old instance during relaunch.
+        // Wait for the new resumed instance already tracked for background I/O.
+        java.lang.reflect.Field foreground = MainActivity.class.getDeclaredField("visible");
+        foreground.setAccessible(true);
+        final Activity[] resumed = new Activity[1];
+        for (int attempt = 0; attempt < 60 && resumed[0] == null; attempt++) {
+            onMain(() -> {
+                try {
+                    java.lang.ref.WeakReference<?> reference = (java.lang.ref.WeakReference<?>) foreground.get(null);
+                    Activity candidate = (Activity) reference.get();
+                    if (candidate != null && candidate != previous && !candidate.isDestroyed()
+                            && candidate.getWindow().getDecorView().isAttachedToWindow()) resumed[0] = candidate;
+                } catch (IllegalAccessException failure) { throw new AssertionError(failure); }
+            });
+            test.waitForIdleSync(); SystemClock.sleep(100);
+        }
+        if (resumed[0] == null) throw new AssertionError("No new attached foreground activity after recreation");
+        activity = resumed[0]; active = activity; test.waitForIdleSync(); SystemClock.sleep(300);
         stage("verify restored editor and save through its real dialog button");
         // API 24 accessibility can retain a stale active-window ID across recreation.
         // Inspect the actual restored dialog view; do not recreate or fill its state.
