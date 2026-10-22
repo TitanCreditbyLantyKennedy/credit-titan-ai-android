@@ -78,7 +78,15 @@ def main():
     launch()
     reject(args.previous, 'INSTALL_FAILED_VERSION_DOWNGRADE', new['version_code'])
     reject(args.mismatch, 'INSTALL_FAILED_UPDATE_INCOMPATIBLE', new['version_code'])
-    probe('ui')
+    try:
+        probe('ui')
+    finally:
+        # The emulator action shuts down before subsequent workflow steps.
+        # Copy test-only screenshots while this emulator is still alive.
+        from pathlib import Path
+        Path('ui-screenshots').mkdir(exist_ok=True)
+        _, capture = adb('pull', '/sdcard/Android/data/' + PACKAGE + '/files/.', 'ui-screenshots')
+        print(capture)
     print('PASS: UI navigation, notes, bureau drafts, unsaved editor recreation, calculator, checklist, privacy cancel')
     print('PASS: fresh install, launch, in-place upgrade, saved notes/draft/checklists, downgrade and wrong-key rejection')
 

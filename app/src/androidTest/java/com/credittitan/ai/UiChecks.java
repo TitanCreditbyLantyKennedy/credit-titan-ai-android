@@ -64,7 +64,7 @@ final class UiChecks {
         test.waitForIdleSync(); SystemClock.sleep(300);
         Bitmap image = test.getUiAutomation().takeScreenshot();
         if (image == null) throw new AssertionError("No screenshot captured");
-        File directory = test.getContext().getExternalFilesDir(null);
+        File directory = test.getTargetContext().getExternalFilesDir(null);
         if (directory == null) throw new AssertionError("No test screenshot storage");
         try (FileOutputStream out = new FileOutputStream(new File(directory, name + ".png"))) {
             if (!image.compress(Bitmap.CompressFormat.PNG, 100, out)) throw new AssertionError("Cannot save screenshot");
