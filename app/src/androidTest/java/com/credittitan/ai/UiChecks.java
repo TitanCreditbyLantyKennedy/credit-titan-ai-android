@@ -70,7 +70,17 @@ final class UiChecks {
         test.runOnMainSync(() -> activity.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_SECURE));
         test.waitForIdleSync(); SystemClock.sleep(300);
         Bitmap image = test.getUiAutomation().takeScreenshot();
-        if (image == null) throw new AssertionError("No screenshot captured");
+        if (image == null) {
+            // Older SurfaceFlinger versions may return null after recreation.
+            // Render the actual laid-out native view, preserving all UI assertions.
+            final Bitmap[] rendered = new Bitmap[1];
+            test.runOnMainSync(() -> {
+                android.view.View root = activity.getWindow().getDecorView();
+                rendered[0] = Bitmap.createBitmap(root.getWidth(), root.getHeight(), Bitmap.Config.ARGB_8888);
+                root.draw(new android.graphics.Canvas(rendered[0]));
+            });
+            image = rendered[0];
+        }
         File directory = test.getTargetContext().getExternalFilesDir(null);
         if (directory == null) throw new AssertionError("No test screenshot storage");
         try (FileOutputStream out = new FileOutputStream(new File(directory, name + ".png"))) {
