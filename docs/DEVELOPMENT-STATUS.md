@@ -34,9 +34,9 @@ PDF import uses the Android document picker, copies off the UI thread, limits ni
 - `python3 scripts/check_version.py --base-ref origin/fix/apk-update-reliability`: source version discipline.
 - `bash scripts/build_fixtures.sh`: temporary test keys only; builds actual prior source at PR #5 commit `59f18ef...` and the current candidate.
 - `python3 scripts/test_upgrade.py ...`: refuses physical devices and pre-existing installations; emulator tests launch, same-key update, note/draft/checklist/PDF preservation, downgrade and wrong-key rejection, then real screen interactions.
-- Test-only instrumentation captures fictional-data UI screenshots by temporarily clearing screenshot protection in the test process. Production continues to use `FLAG_SECURE`.
+- Test-only instrumentation captures fictional-data UI screenshots by temporarily clearing screenshot protection in the test process. When the older screenshot compositor returns no image, the test renders the actual laid-out native decor. Production continues to use `FLAG_SECURE`.
 
-The fixture key must never be distributed. Screenshots alone cannot establish correct live data handling, accessibility across all devices, or production readiness. Run the canonical API 24/35 emulator checks and review screenshots at normal and larger font sizes before merging. The imported report fixture is synthetic and contains no consumer data.
+The fixture key must never be distributed. Screenshots alone cannot establish correct live data handling, accessibility across all devices, or production readiness. Run the canonical API 24/35 emulator checks and review screenshots at normal and larger font sizes before merging. The imported report fixture is synthetic and contains no consumer data. Editor restoration is deferred until the new window attaches, and an old activity explicitly closes its editor dialog during destruction; tests verify the actual restored text and invoke the real Save button.
 
 ## Local validation record — October 21, 2026
 
@@ -44,11 +44,21 @@ A clean build passed `:app:assembleDebug`, `:app:assembleRelease`, `:app:assembl
 
 The offline Java suite passes 43 assertions; all nine Python APK-policy tests pass. Shell syntax, Python compilation, workflow YAML parsing and source version checks pass.
 
-**Not yet run for this branch:** API 24/35 emulator UI tests, actual runtime upgrade tests, screenshot review, physical-device checks and real-key installed-device continuity. These remain required before merge/distribution. API 35 CI is configured for 1.3x font size. This workspace has no accelerated Android emulator. Automatic approval review blocked the branch push; no new remote PR, merge or release was created by this work.
+The owner approved source publication on October 22; development/app-foundation is now available in draft PR #6. This local workspace has no accelerated emulator; runtime checks ran on GitHub. Nothing has been merged or released.
+
+## CI validation record — October 22, 2026
+
+[Canonical CI run 39](https://github.com/TitanCreditbyLantyKennedy/credit-titan-ai-android/actions/runs/39746943989) passed both API 24 (Android 7, normal text) and API 35 (Android 15, 1.3x text) on app/test source commit `de69bdd376f4da2c87502b986bab836f27b4e118`.
+
+Both jobs pass the 43 offline assertions, nine APK policy tests, source-version checks, missing-signing-credential rejection, actual previous-source and current release/test builds, release lint, package/launcher/signature/version/archive checks, fresh install and launch, in-place upgrade with saved notes/draft/checklist/PDF preservation, downgrade rejection, unrelated-key rejection, screen navigation, note editing, bureau-specific draft generation, unsaved editor recreation and Save, utilization calculation, checklist persistence, and privacy cancellation. Both jobs retain fictional-data UI screenshots for review.
+
+The tests require a genuinely new attached foreground activity after recreation, check the original unsaved text, and invoke the real Save button. Production editor dialogs close with their old activity and restore after the new decor attaches. Navigation labels and score spacing were adjusted after compact-screen/larger-text screenshot review. Navy window and system-bar colors are reapplied on resume/focus after dialogs and activity recreation. The current PR head runs the same canonical workflow for subsequent refinements.
+
+**Remaining gates:** physical-device testing, full accessibility/device coverage, recovery or establishment of the owner-controlled permanent release identity, installed-phone certificate verification, an approved real release baseline or separately reviewed bootstrap/migration decision, and actual real-key upgrade verification. Disposable CI identities do not establish compatibility with an installed consumer copy. Live-service integrations remain incomplete as listed above.
 
 ## Next implementation order
 
-1. Pass full Android build, lint, emulator interaction and genuine prior-source upgrade tests; fix all failures and visually inspect small-screen and larger-font layouts.
+1. Complete manual document-picker/export round trips, physical-device compatibility checks and full accessibility coverage. Automated builds, lint, emulator interactions, genuine prior-source upgrades and compact/larger-text screenshot review are recorded above.
 2. Resolve installed-app signing identity and owner-controlled release key recovery/creation/backup. Run the real-key baseline upgrade gate in `APK-UPDATES.md`. Never commit keys, passwords, provider credentials, or consumer reports.
 3. Add normalized report/account/evidence records and a reproducible parser pipeline with synthetic/redacted fixtures for supported formats. Record extraction uncertainty; never silently treat unreadable PDFs as clean reports.
 4. Add a secure authenticated backend for consented processing. Keep service credentials off Android. Define access control, rate limits, deletion/retention, redacted operational logs, provider failures, and incident recovery before connecting real consumers.
