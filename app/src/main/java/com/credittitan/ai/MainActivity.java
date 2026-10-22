@@ -50,8 +50,7 @@ public class MainActivity extends Activity {
         prefs = getSharedPreferences("titan_local", MODE_PRIVATE);
         reports = new LocalReports(getFilesDir());
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE);
-        getWindow().setStatusBarColor(NAVY);
-        getWindow().setNavigationBarColor(NAVY);
+        applyWindowColors();
         if (state != null) {
             page = state.getString("page", "Dashboard");
             exportText = state.getString("export", "");
@@ -82,8 +81,22 @@ public class MainActivity extends Activity {
         }
     }
     @Override protected void onResume() {
-        super.onResume(); visible = new java.lang.ref.WeakReference<>(this);
+        super.onResume(); applyWindowColors(); visible = new java.lang.ref.WeakReference<>(this);
         if (page.equals("Reports") && editor == null && !importing.get()) show("Reports");
+    }
+    private void applyWindowColors() {
+        getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(NAVY));
+        getWindow().setStatusBarColor(NAVY);
+        getWindow().setNavigationBarColor(NAVY);
+        getWindow().getDecorView().setSystemUiVisibility(0);
+        if (android.os.Build.VERSION.SDK_INT >= 29) {
+            getWindow().setStatusBarContrastEnforced(false);
+            getWindow().setNavigationBarContrastEnforced(false);
+        }
+    }
+    @Override public void onWindowFocusChanged(boolean focused) {
+        super.onWindowFocusChanged(focused);
+        if (focused) applyWindowColors();
     }
     @Override protected void onPause() {
         if (visible.get() == this) visible.clear();
