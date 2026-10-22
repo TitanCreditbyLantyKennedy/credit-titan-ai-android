@@ -27,12 +27,24 @@ public class UpgradeProbe extends Instrumentation {
                         .putBoolean("boost0", true).putBoolean("goal0", true).commit()) {
                     throw new AssertionError("Unable to seed preferences");
                 }
+                java.io.File directory = new java.io.File(target.getFilesDir(), "reports");
+                if (!directory.isDirectory() && !directory.mkdirs()) throw new AssertionError("Cannot seed report directory");
+                try (java.io.FileOutputStream out = new java.io.FileOutputStream(new java.io.File(directory, "upgrade-report.pdf"))) {
+                    out.write("%PDF-1.7\nupgrade-test-only\n%%EOF".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                }
             } else if ("verify".equals(args.getString("phase"))) {
                 if (!"upgrade-test-report".equals(prefs.getString("report_notes", ""))
                         || !"upgrade-test-draft".equals(prefs.getString("dispute_draft", ""))
                         || !prefs.getBoolean("boost0", false) || !prefs.getBoolean("goal0", false)) {
                     throw new AssertionError("Saved user data changed during update");
                 }
+                java.io.File report = new java.io.File(target.getFilesDir(), "reports/upgrade-report.pdf");
+                try (java.io.FileInputStream in = new java.io.FileInputStream(report)) {
+                    byte[] contents = new byte[(int)report.length()];
+                    if (in.read(contents) != contents.length || !new String(contents, java.nio.charset.StandardCharsets.UTF_8).contains("upgrade-test-only")) throw new AssertionError("Imported report changed during update");
+                }
+            } else if ("ui".equals(args.getString("phase"))) {
+                new UiChecks(this).run();
             } else {
                 throw new AssertionError("Unknown phase");
             }

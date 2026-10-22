@@ -1,7 +1,14 @@
 # Credit Titan AI Android
 
-Creator, Developer & Designer: Lanty Kennedy.
+Creator, Developer & Designer: **Lanty Kennedy**.
 
-The app retains its ice-blue, silver and navy design and package `com.credittitanai.app`.
+Native Android offline foundation with ice-blue, silver and navy styling, shield identity, local report workspace, user-reviewed dispute drafting, educational coaching and action-plan progress. Package: `com.credittitanai.app`.
 
-APK updates use one validation workflow with a dedicated secret-backed release identity and fail-closed upgrade checks. See [APK update setup and merge gates](docs/APK-UPDATES.md). Debug APKs are development-only and are not distributed by CI.
+The app is clearly labeled as a demo: no live AI, bureau data, monitoring, card offers or dispute submissions are connected. Private PDF imports are stored, not parsed or analyzed.
+
+- [Implemented features, verification and remaining work](docs/DEVELOPMENT-STATUS.md)
+- [APK signing, updates and distribution gates](docs/APK-UPDATES.md)
+
+Android builds use only `app/src/main/` and the `:app` Gradle module. Legacy duplicate root source/manifest templates have been removed to prevent editing unbuilt files. No CI debug APK is distributed. Temporary-key APKs are for disposable emulator tests only.
+
+Local checks: `bash scripts/test_offline.sh` and `python3 -m unittest discover -s tests -v`. Android compile/build needs Java 17, Gradle 8.9, Android platform 35 and build-tools 35.0.0. Full emulator tests run through the canonical workflow; release signing requires owner-controlled secrets, never a random debug key.
