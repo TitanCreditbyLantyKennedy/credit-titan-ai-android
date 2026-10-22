@@ -140,7 +140,7 @@ public class MainActivity extends Activity {
         TextView mode = text("OFFLINE DEMO  •  PRIVATE LOCAL TOOLS", 10, CYAN); content.addView(mode);
         TextView title = text(page.equals("Dashboard") ? "Your credit. Your next move." : page, 27, Color.WHITE);
         title.setTypeface(null, Typeface.BOLD); content.addView(title);
-        content.addView(text("Illustrative data • No connected accounts", 12, MUTED));
+        if (!page.equals("Dashboard")) content.addView(text("Illustrative data • No connected accounts", 12, MUTED));
         switch (page) {
             case "Dashboard": dashboard(); break;
             case "Reports": reportPage(); break;
@@ -160,7 +160,7 @@ public class MainActivity extends Activity {
         String selected = page; if (!java.util.Arrays.asList(targets).contains(page)) selected = "More";
         for (int i = 0; i < labels.length; i++) {
             final String target = targets[i]; boolean active = target.equals(selected);
-            Button tab = button(labels[i], () -> show(target), active); tab.setTextSize(11); tab.setPadding(dp(2), dp(10), dp(2), dp(10));
+            Button tab = button(labels[i], () -> show(target), active); tab.setTextSize(10); tab.setSingleLine(true); tab.setPadding(dp(2), dp(10), dp(2), dp(10));
             tab.setSelected(active); tab.setContentDescription(labels[i] + (active ? ", selected" : ", navigation"));
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, -2, 1); lp.setMargins(dp(2), 0, dp(2), 0); nav.addView(tab, lp);
         }
@@ -179,7 +179,7 @@ public class MainActivity extends Activity {
     }
     private void dashboard() {
         LinearLayout score = card("Your credit snapshot", "SAMPLE SCORE • Not a live FICO score");
-        score.addView(new ScoreView(), new LinearLayout.LayoutParams(-1, dp(190)));
+        score.addView(new ScoreView(), new LinearLayout.LayoutParams(-1, dp(166)));
         score.addView(text("682 is fictional. Your checklist never changes this sample score.", 12, MUTED));
         LinearLayout plan = card("Build your next chapter", "A practical credit-health checklist, one step at a time.");
         progressBar(plan, completed("boost", STEPS.length), STEPS.length);
@@ -404,14 +404,14 @@ public class MainActivity extends Activity {
         private final RectF arc = new RectF();
         private LinearGradient gradient;
         @Override protected void onSizeChanged(int w, int h, int oldw, int oldh) {
-            float center = w / 2f, radius = Math.min(w * .38f, dp(120)), y = dp(136);
+            float center = w / 2f, radius = Math.min(w * .38f, dp(100)), y = dp(112);
             arc.set(center - radius, y - radius, center + radius, y + radius);
             gradient = new LinearGradient(center - radius, 0, center + radius, 0, new int[]{0xff386a98, CYAN, SILVER}, null, Shader.TileMode.CLAMP);
         }
         ScoreView() { super(MainActivity.this); setContentDescription("Fictional sample credit score 682, on a scale of 300 to 850. Not connected."); setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_YES); }
         @Override protected void onDraw(Canvas c) {
             super.onDraw(c);
-            float center = getWidth() / 2f, radius = Math.min(getWidth() * .38f, dp(120)), y = dp(136);
+            float center = getWidth() / 2f, radius = Math.min(getWidth() * .38f, dp(100)), y = dp(112);
             paint.setStyle(Paint.Style.STROKE); paint.setStrokeCap(Paint.Cap.ROUND); paint.setStrokeWidth(dp(10));
             paint.setColor(Color.rgb(39, 60, 82)); c.drawArc(arc, 180, 180, false, paint);
             paint.setShader(gradient);
