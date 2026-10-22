@@ -21,7 +21,8 @@ def probe(phase):
     code, output = adb('shell', 'am', 'instrument', '-w', '-e', 'phase', phase,
                        PACKAGE + '.test/com.credittitan.ai.UpgradeProbe')
     if code or 'result=PASS' not in output or 'INSTRUMENTATION_CODE: -1' not in output:
-        raise AssertionError(output)
+        _, crash = adb('logcat', '-d', '-b', 'crash')
+        raise AssertionError(output + '\nCrash diagnostics:\n' + crash)
 
 
 def launch():

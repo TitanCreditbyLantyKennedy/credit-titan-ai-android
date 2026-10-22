@@ -38,6 +38,11 @@ final class UiChecks {
         }
         return null;
     }
+    private void onMain(Runnable action) {
+        final Throwable[] failure = new Throwable[1];
+        test.runOnMainSync(() -> { try { action.run(); } catch (Throwable problem) { failure[0] = problem; } });
+        if (failure[0] != null) throw new AssertionError("UI-thread check failed: " + failure[0], failure[0]);
+    }
     private void stage(String value) {
         Bundle status = new Bundle(); status.putString("stream", "UI step: " + value + "\n"); test.sendStatus(0, status);
     }
@@ -79,14 +84,14 @@ final class UiChecks {
     }
     private void screenshot(Activity activity, String name) throws Exception {
         // Test-only capture of fictional data. Production keeps FLAG_SECURE enabled.
-        test.runOnMainSync(() -> activity.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_SECURE));
+        onMain(() -> activity.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_SECURE));
         test.waitForIdleSync(); SystemClock.sleep(300);
         Bitmap image = test.getUiAutomation().takeScreenshot();
         if (image == null) {
             // Older SurfaceFlinger versions may return null after recreation.
             // Render the actual laid-out native view, preserving all UI assertions.
             final Bitmap[] rendered = new Bitmap[1];
-            test.runOnMainSync(() -> {
+            onMain(() -> {
                 android.view.View root = activity.getWindow().getDecorView();
                 rendered[0] = Bitmap.createBitmap(root.getWidth(), root.getHeight(), Bitmap.Config.ARGB_8888);
                 root.draw(new android.graphics.Canvas(rendered[0]));
@@ -99,7 +104,7 @@ final class UiChecks {
             if (!image.compress(Bitmap.CompressFormat.PNG, 100, out)) throw new AssertionError("Cannot save screenshot");
         }
         image.recycle();
-        test.runOnMainSync(() -> activity.getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE));
+        onMain(() -> activity.getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE));
     }
     void run() throws Exception {
         try { runChecks(); }
@@ -132,7 +137,7 @@ final class UiChecks {
         click("Edit dispute draft"); set("draft", "Unsaved draft survives recreation.");
         Instrumentation.ActivityMonitor monitor = test.addMonitor("com.credittitan.ai.MainActivity", null, false);
         Activity previous = activity;
-        test.runOnMainSync(previous::recreate);
+        onMain(previous::recreate);
         Activity recreated = monitor.waitForActivityWithTimeout(5000);
         if (recreated == null) throw new AssertionError("Activity did not recreate");
         activity = recreated; active = activity; test.removeMonitor(monitor); test.waitForIdleSync(); SystemClock.sleep(300);
@@ -142,10 +147,10 @@ final class UiChecks {
         java.lang.reflect.Field editorField = MainActivity.class.getDeclaredField("editor");
         editorField.setAccessible(true);
         Activity restoredActivity = activity;
-        test.runOnMainSync(() -> {
+        onMain(() -> {
             try {
                 android.widget.EditText restored = (android.widget.EditText) editorField.get(restoredActivity);
-                if (restored == null || !"Unsaved draft survives recreation.".contentEquals(restored.getText())) throw new AssertionError("Unsaved editor state was lost");
+                if (restored == null || !"Unsaved draft survives recreation.".contentEquals(restored.getText())) throw new AssertionError("Unsaved editor state was lost: " + (restored == null ? "no editor" : restored.getText().toString()));
                 android.view.View save = restored.getRootView().findViewById(android.R.id.button1);
                 if (save == null || !save.performClick()) throw new AssertionError("Restored dialog has no working Save button");
             } catch (IllegalAccessException failure) { throw new AssertionError(failure); }
@@ -159,7 +164,7 @@ final class UiChecks {
         if (test.getTargetContext().getSharedPreferences("titan_local", 0).getBoolean("boost0", true)) throw new AssertionError("Plan change not saved");
         click("Read step 1"); click("Mark completed");
         active = activity;
-        test.runOnMainSync(() -> {
+        onMain(() -> {
             Activity current = monitorActivity();
             ((android.widget.EditText) current.findViewById(R.id.utilization_balance)).setText("320");
             ((android.widget.EditText) current.findViewById(R.id.utilization_limit)).setText("1000");
@@ -172,7 +177,7 @@ final class UiChecks {
         click("Clear this app's local data"); find("Delete your local workspace?"); click("Cancel");
         if (test.getTargetContext().getSharedPreferences("titan_local", 0).getString("report_notes", "").isEmpty()) throw new AssertionError("Cancel erased saved notes");
         click("Home"); find("Your credit. Your next move.");
-        test.runOnMainSync(activity::finish);
+        onMain(activity::finish);
     }
     private Activity active;
     private Activity monitorActivity() { return active; }
