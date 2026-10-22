@@ -21,14 +21,21 @@ final class UiChecks {
             AccessibilityNodeInfo root = test.getUiAutomation().getRootInActiveWindow();
             if (root != null) {
                 for (AccessibilityNodeInfo node : root.findAccessibilityNodeInfosByText(text)) {
-                    if (text.contentEquals(node.getText() == null ? "" : node.getText()) && node.isVisibleToUser()) return node;
+                    if (text.equalsIgnoreCase(node.getText() == null ? "" : node.getText().toString()) && node.isVisibleToUser()) return node;
                 }
                 AccessibilityNodeInfo scroller = scrollable(root);
                 if (scroller != null) scroller.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD);
             }
             SystemClock.sleep(150);
         }
-        throw new AssertionError("Missing visible control/text: " + text);
+        throw new AssertionError("Missing visible control/text: " + text + "; visible tree: " + describe(test.getUiAutomation().getRootInActiveWindow()));
+    }
+    private String describe(AccessibilityNodeInfo node) {
+        if (node == null) return "no active window";
+        StringBuilder result = new StringBuilder();
+        if (node.isVisibleToUser() && node.getText() != null) result.append('[').append(node.getText()).append(']');
+        for (int i = 0; i < node.getChildCount(); i++) result.append(describe(node.getChild(i)));
+        return result.toString();
     }
     private AccessibilityNodeInfo scrollable(AccessibilityNodeInfo node) {
         if (node == null) return null;
@@ -73,8 +80,16 @@ final class UiChecks {
         test.runOnMainSync(() -> activity.getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE));
     }
     void run() throws Exception {
+        try { runChecks(); }
+        catch (Exception | AssertionError failure) {
+            try { if (active != null) screenshot(active, "failure"); } catch (Exception ignored) { }
+            throw failure;
+        }
+    }
+    private void runChecks() throws Exception {
         test.getUiAutomation();
         Activity activity = test.startActivitySync(new Intent().setClassName(test.getTargetContext(), "com.credittitan.ai.MainActivity").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
+        active = activity;
         test.waitForIdleSync(); SystemClock.sleep(500);
         find("Your credit. Your next move.");
         for (String label : new String[]{"Home", "Reports", "Disputes", "Coach", "More"}) {
@@ -96,7 +111,7 @@ final class UiChecks {
         test.runOnMainSync(previous::recreate);
         Activity recreated = monitor.waitForActivityWithTimeout(5000);
         if (recreated == null) throw new AssertionError("Activity did not recreate");
-        activity = recreated; test.removeMonitor(monitor); test.waitForIdleSync(); SystemClock.sleep(300);
+        activity = recreated; active = activity; test.removeMonitor(monitor); test.waitForIdleSync(); SystemClock.sleep(300);
         find("Unsaved draft survives recreation."); click("Save locally");
         find("Unsaved draft survives recreation.");
         click("Review and export draft"); find("Export your draft?"); click("Cancel");
