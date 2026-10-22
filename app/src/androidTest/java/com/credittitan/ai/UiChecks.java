@@ -16,9 +16,9 @@ final class UiChecks {
     private final Instrumentation test;
     UiChecks(Instrumentation test) { this.test = test; }
     private AccessibilityNodeInfo find(String text) {
-        for (int attempt = 0; attempt < 16; attempt++) {
+        for (int attempt = 0; attempt < 40; attempt++) {
             test.waitForIdleSync();
-            AccessibilityNodeInfo root = test.getUiAutomation().getRootInActiveWindow();
+            AccessibilityNodeInfo root = root();
             if (root != null) {
                 for (AccessibilityNodeInfo node : root.findAccessibilityNodeInfosByText(text)) {
                     if (text.equalsIgnoreCase(node.getText() == null ? "" : node.getText().toString()) && node.isVisibleToUser()) return node;
@@ -28,7 +28,18 @@ final class UiChecks {
             }
             SystemClock.sleep(150);
         }
-        throw new AssertionError("Missing visible control/text: " + text + "; visible tree: " + describe(test.getUiAutomation().getRootInActiveWindow()));
+        throw new AssertionError("Missing visible control/text: " + text + "; visible tree: " + describe(root()));
+    }
+    private AccessibilityNodeInfo root() {
+        AccessibilityNodeInfo node = test.getUiAutomation().getRootInActiveWindow();
+        if (node != null) return node;
+        for (android.view.accessibility.AccessibilityWindowInfo window : test.getUiAutomation().getWindows()) {
+            if ((window.isActive() || window.isFocused()) && window.getRoot() != null) return window.getRoot();
+        }
+        return null;
+    }
+    private void stage(String value) {
+        Bundle status = new Bundle(); status.putString("stream", "UI step: " + value + "\n"); test.sendStatus(0, status);
     }
     private String describe(AccessibilityNodeInfo node) {
         if (node == null) return "no active window";
@@ -44,6 +55,7 @@ final class UiChecks {
         return null;
     }
     private void click(String text) {
+        stage("click " + text);
         AccessibilityNodeInfo node = find(text);
         // Controls below the fold must be revealed as they would be for a user.
         node.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SHOW_ON_SCREEN.getId());
@@ -53,7 +65,7 @@ final class UiChecks {
         test.waitForIdleSync(); SystemClock.sleep(200);
     }
     private void set(String current, String value) {
-        AccessibilityNodeInfo root = test.getUiAutomation().getRootInActiveWindow();
+        AccessibilityNodeInfo root = root();
         AccessibilityNodeInfo editor = editable(root);
         if (editor == null) throw new AssertionError("No accessible editor for " + current);
         Bundle args = new Bundle(); args.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, value);
@@ -97,7 +109,9 @@ final class UiChecks {
         }
     }
     private void runChecks() throws Exception {
-        test.getUiAutomation();
+        android.accessibilityservice.AccessibilityServiceInfo info = test.getUiAutomation().getServiceInfo();
+        info.flags |= android.accessibilityservice.AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS;
+        test.getUiAutomation().setServiceInfo(info);
         Activity activity = test.startActivitySync(new Intent().setClassName(test.getTargetContext(), "com.credittitan.ai.MainActivity").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
         active = activity;
         test.waitForIdleSync(); SystemClock.sleep(500);
@@ -122,7 +136,22 @@ final class UiChecks {
         Activity recreated = monitor.waitForActivityWithTimeout(5000);
         if (recreated == null) throw new AssertionError("Activity did not recreate");
         activity = recreated; active = activity; test.removeMonitor(monitor); test.waitForIdleSync(); SystemClock.sleep(300);
-        find("Unsaved draft survives recreation."); click("Save locally");
+        stage("verify restored editor and save through its real dialog button");
+        // API 24 accessibility can retain a stale active-window ID across recreation.
+        // Inspect the actual restored dialog view; do not recreate or fill its state.
+        java.lang.reflect.Field editorField = MainActivity.class.getDeclaredField("editor");
+        editorField.setAccessible(true);
+        Activity restoredActivity = activity;
+        test.runOnMainSync(() -> {
+            try {
+                android.widget.EditText restored = (android.widget.EditText) editorField.get(restoredActivity);
+                if (restored == null || !"Unsaved draft survives recreation.".contentEquals(restored.getText())) throw new AssertionError("Unsaved editor state was lost");
+                android.view.View save = restored.getRootView().findViewById(android.R.id.button1);
+                if (save == null || !save.performClick()) throw new AssertionError("Restored dialog has no working Save button");
+            } catch (IllegalAccessException failure) { throw new AssertionError(failure); }
+        });
+        test.waitForIdleSync();
+        if (!"Unsaved draft survives recreation.".equals(test.getTargetContext().getSharedPreferences("titan_local", 0).getString("dispute_draft", ""))) throw new AssertionError("Restored draft did not save");
         find("Unsaved draft survives recreation.");
         click("Review and export draft"); find("Export your draft?"); click("Cancel");
         click("Coach"); click("Understand different scores"); find("Understand different scores"); click("Close");
