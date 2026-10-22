@@ -1,0 +1,5 @@
+<resources>
+    <item name="utilization_balance" type="id" />
+    <item name="utilization_limit" type="id" />
+    <item name="utilization_result" type="id" />
+</resources>

@@ -14,6 +14,7 @@ def signingReady = signingNames.every { System.getenv(it)?.trim() }
 android {
     namespace 'com.credittitan.ai'
     compileSdk 35
+    buildToolsVersion '35.0.0'
     defaultConfig {
         applicationId 'com.credittitanai.app'
         minSdk 24
