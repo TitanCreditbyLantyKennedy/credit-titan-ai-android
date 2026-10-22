@@ -140,6 +140,7 @@ final class UiChecks {
         onMain(previous::recreate);
         Activity recreated = monitor.waitForActivityWithTimeout(5000);
         if (recreated == null) throw new AssertionError("Activity did not recreate");
+        if (recreated == previous) throw new AssertionError("Activity monitor returned the destroyed instance");
         activity = recreated; active = activity; test.removeMonitor(monitor); test.waitForIdleSync(); SystemClock.sleep(300);
         stage("verify restored editor and save through its real dialog button");
         // API 24 accessibility can retain a stale active-window ID across recreation.
@@ -151,6 +152,7 @@ final class UiChecks {
             try {
                 android.widget.EditText restored = (android.widget.EditText) editorField.get(restoredActivity);
                 if (restored == null || !"Unsaved draft survives recreation.".contentEquals(restored.getText())) throw new AssertionError("Unsaved editor state was lost: " + (restored == null ? "no editor" : restored.getText().toString()));
+                if (!restored.isAttachedToWindow()) throw new AssertionError("Restored editor is detached from its window");
                 android.view.View save = restored.getRootView().findViewById(android.R.id.button1);
                 if (save == null || !save.performClick()) throw new AssertionError("Restored dialog has no working Save button");
             } catch (IllegalAccessException failure) { throw new AssertionError(failure); }

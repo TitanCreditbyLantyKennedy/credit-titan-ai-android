@@ -41,6 +41,7 @@ public class MainActivity extends Activity {
     private static java.lang.ref.WeakReference<MainActivity> visible = new java.lang.ref.WeakReference<>(null);
     private final ExecutorService io = Executors.newSingleThreadExecutor();
     private EditText editor;
+    private AlertDialog editorDialog;
     private String editorKey;
     private String restoredEditorKey, restoredEditorText;
 
@@ -62,7 +63,13 @@ public class MainActivity extends Activity {
             final int position = state.getInt("scroll");
             scroll.post(() -> scroll.scrollTo(0, position));
         }
-        if (restoredEditorKey != null) edit(restoredEditorKey, restoredEditorText);
+        if (restoredEditorKey != null) {
+            // During Android 7 relaunch, old-window cleanup can detach a dialog
+            // opened inside onCreate. Restore only after the new decor attaches.
+            getWindow().getDecorView().post(() -> {
+                if (!isFinishing() && !isDestroyed() && editor == null) edit(restoredEditorKey, restoredEditorText);
+            });
+        }
     }
     @Override protected void onSaveInstanceState(Bundle state) {
         super.onSaveInstanceState(state);
@@ -82,7 +89,14 @@ public class MainActivity extends Activity {
         if (visible.get() == this) visible.clear();
         super.onPause();
     }
-    @Override protected void onDestroy() { io.shutdown(); super.onDestroy(); }
+    @Override protected void onDestroy() {
+        if (editorDialog != null) {
+            editorDialog.setOnDismissListener(null);
+            if (editorDialog.getWindow() != null && editorDialog.getWindow().getDecorView().isAttachedToWindow()) editorDialog.dismiss();
+            editorDialog = null; editor = null;
+        }
+        io.shutdown(); super.onDestroy();
+    }
     @Override public void onBackPressed() { if (!page.equals("Dashboard")) show("Dashboard"); else super.onBackPressed(); }
     private int dp(float n) { return (int) (n * getResources().getDisplayMetrics().density + .5f); }
     private GradientDrawable shape(int color, int radius) {
@@ -229,7 +243,8 @@ public class MainActivity extends Activity {
         boolean draft = key.equals("dispute_draft");
         AlertDialog dialog = new AlertDialog.Builder(this).setTitle(draft ? "Edit dispute draft" : "Edit report notes").setView(editor)
                 .setNegativeButton("Cancel", null).setPositiveButton("Save locally", null).create();
-        dialog.setOnDismissListener(d -> { editor = null; editorKey = null; });
+        editorDialog = dialog;
+        dialog.setOnDismissListener(d -> { editor = null; editorKey = null; editorDialog = null; });
         dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
             String value = editor.getText().toString();
             if (!prefs.edit().putString(key, value).commit()) { editor.setError("Unable to save. Please try again."); return; }
