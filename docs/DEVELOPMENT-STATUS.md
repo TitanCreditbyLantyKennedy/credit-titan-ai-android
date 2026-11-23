@@ -4,12 +4,12 @@ Owner / Creator, Developer & Designer: **Lanty Kennedy**.
 
 ## Current implementation
 
-Version 1.0.4 / code 5 is an **offline Android foundation**, not a public production service. It preserves `com.credittitanai.app`, the shield, and the approved ice-blue/silver/navy palette. Five fixed tabs expose Home, Reports, Disputes, Coach, and More. More contains the action plan, bureaus, progress, card examples, Guardian, and privacy controls. This source update has not been built or device-validated.
+Version 1.0.4 / code 5 is an **offline Android foundation**, not a public production service. It preserves `com.credittitanai.app`, the shield, and the approved ice-blue/silver/navy palette. Five fixed tabs expose Home, Reports, Disputes, Coach, and More. More contains the action plan, bureaus, progress, card examples, Guardian, and privacy controls. The latest source passed the canonical API 24 and API 35 emulator upgrade and UI workflows, including a synthetic PDF OCR review and correction.
 
 | Area | Working locally | Still needed for live operation |
 | --- | --- | --- |
 | Dashboard | Clearly fictional score gauge, saved-plan progress, workspace counts | Consented score/report provider and model/version/date attribution |
-| Reports | Private PDF copying; bundled on-device OCR; editable, separately saved OCR corrections; bureau assignment, deletion, notes | Build/device validation; supported-format review; normalized account records; cross-bureau comparison and evidence links |
+| Reports | Private PDF copying; bundled on-device OCR; editable, separately saved OCR corrections; bureau assignment, deletion, notes | Representative consumer-PDF and scanned-image quality review; normalized account records; cross-bureau comparison and evidence links |
 | Disputes | Bureau selection, editable note-based draft, overwrite confirmation, reviewed text export | Multiple dispute records, evidence attachment, current verified addresses, user-approved mailing, delivery/response history |
 | Coach | Prepared educational topics and input-validated utilization calculator | Authenticated AI backend, grounded responses and refusal/escalation tests |
 | FICO Booster Plus | Six guidance dialogs, persistent completion, progress | No score prediction is implemented; future data must identify the scoring model |
@@ -25,7 +25,7 @@ The planned marketplace business model remains bank-paid advertising plus approv
 
 A new recipient selection applies to the next generated draft, not an existing edited draft. There is one saved draft in this foundation. Generating over it requires confirmation; exporting retains a copy outside app-private storage. Draft generation includes the user's notes verbatim and does not analyze them or establish a legal violation. No letter, application, or payment is sent.
 
-PDF import uses the Android document picker, copies off the UI thread, limits nine files to 20 MB each, requires a PDF header, and removes partial copies on handled failures. On-device OCR uses Android `PdfRenderer` and the bundled ML Kit Latin text-recognition model; it processes up to 60 pages and stores extracted text privately. The app warns that OCR may misread information and provides a separate editable reviewed-text copy. OCR is not account parsing, legal analysis, or cross-bureau comparison. Full PDF structure and extraction quality have not yet been device-validated. Local deletion includes interrupted `.pending` files. Export is a user-selected plain-text file; exports and original source documents are not removed by clearing workspace data.
+PDF import uses the Android document picker, copies off the UI thread, limits nine files to 20 MB each, requires a PDF header, and removes partial copies on handled failures. On-device OCR uses Android `PdfRenderer` and the bundled ML Kit Latin text-recognition model; it processes up to 60 pages and stores extracted text privately. A synthetic PDF OCR, review, correction, and local-save workflow passed on API 24 and API 35. The app warns that OCR may misread information and provides a separate editable reviewed-text copy. Representative consumer PDFs and image-only scans still need quality review. OCR is not account parsing, legal analysis, or cross-bureau comparison. Local deletion includes interrupted `.pending` files. Export is a user-selected plain-text file; exports and original source documents are not removed by clearing workspace data.
 
 ## Verification
 
@@ -36,7 +36,11 @@ PDF import uses the Android document picker, copies off the UI thread, limits ni
 - `python3 scripts/test_upgrade.py ...`: refuses physical devices and pre-existing installations; emulator tests launch, same-key update, note/draft/checklist/PDF preservation, downgrade and wrong-key rejection, then real screen interactions.
 - Test-only instrumentation captures fictional-data UI screenshots by temporarily clearing screenshot protection in the test process. When the older screenshot compositor returns no image, the test renders the actual laid-out native decor. Production continues to use `FLAG_SECURE`.
 
-The fixture key must never be distributed. Screenshots alone cannot establish correct live data handling, accessibility across all devices, or production readiness. Run the canonical API 24/35 emulator checks and review screenshots at normal and larger font sizes before merging. The imported report fixture is synthetic and contains no consumer data. Editor restoration is deferred until the new window attaches, and an old activity explicitly closes its editor dialog during destruction; tests verify the actual restored text and invoke the real Save button.
+The fixture key must never be distributed. Screenshots alone cannot establish correct live data handling, accessibility across all devices, or production readiness. The imported report fixture is synthetic and contains no consumer data. Editor restoration is deferred until the new window attaches, and an old activity explicitly closes its editor dialog during destruction; tests verify the actual restored text and invoke the real Save button.
+
+## Current CI validation record — November 23, 2026
+
+[Canonical CI run 48](https://github.com/TitanCreditbyLantyKennedy/credit-titan-ai-android/actions/runs/45217848445) passed on API 24 (Android 7, normal text) and API 35 (Android 15, 1.3x text). Both jobs passed 43 offline assertions, APK policy and version checks, disposable fixture builds, app launch, same-key upgrade and persistence checks, downgrade/wrong-key rejection, and the complete synthetic-data UI flow. That flow confirms that OCR extracts the fictional bureau/account/balance text, the user can close the result, edit the extracted copy, and save the correction locally. No consumer reports or fixture signing keys are included in the app distribution.
 
 ## Local validation record — October 21, 2026
 
