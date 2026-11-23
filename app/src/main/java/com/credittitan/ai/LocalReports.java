@@ -1,10 +1,11 @@
 package com.credittitan.ai;
 
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.UUID;
 
-/** Private local copies only; never uploads or claims to parse report contents. */
+/** Private report files and on-device OCR text. Nothing is uploaded. */
 public final class LocalReports {
     public static final long MAX_BYTES = 20L * 1024 * 1024;
     private final File directory;
@@ -55,7 +56,84 @@ public final class LocalReports {
         for (File file : all) if (!file.delete()) throw new IOException("Unable to remove every stored file.");
     }
     public synchronized boolean delete(File file) throws IOException {
-        if (!directory.getCanonicalFile().equals(file.getCanonicalFile().getParentFile())) throw new IOException("Invalid local report.");
+        requireReport(file);
+        File ocr = companion(file, ".ocr.txt");
+        File reviewed = companion(file, ".review.txt");
+        if (ocr.exists() && !ocr.delete()) throw new IOException("Unable to remove extracted report text.");
+        if (reviewed.exists() && !reviewed.delete()) throw new IOException("Unable to remove reviewed report text.");
         return file.delete();
+    }
+
+    public synchronized String readOcrText(File report) throws IOException {
+        return readText(companion(requireReport(report), ".ocr.txt"));
+    }
+
+    public synchronized String readReviewedText(File report) throws IOException {
+        return readText(companion(requireReport(report), ".review.txt"));
+    }
+
+    public synchronized void saveOcrText(File report, String text) throws IOException {
+        writeText(companion(requireReport(report), ".ocr.txt"), text);
+        // A new OCR pass supersedes manual corrections, so never pair old
+        // reviewed text with a newer extraction.
+        File reviewed = companion(report, ".review.txt");
+        if (reviewed.exists() && !reviewed.delete()) throw new IOException("Unable to remove older reviewed text.");
+    }
+
+    public synchronized void saveReviewedText(File report, String text) throws IOException {
+        writeText(companion(requireReport(report), ".review.txt"), text);
+    }
+
+    private File requireReport(File report) throws IOException {
+        if (report == null || !report.getName().endsWith(".pdf") || !report.isFile()
+                || !directory.getCanonicalFile().equals(report.getCanonicalFile().getParentFile())) {
+            throw new IOException("Invalid local report.");
+        }
+        return report;
+    }
+
+    private File companion(File report, String suffix) throws IOException {
+        requireReport(report);
+        return new File(directory, report.getName() + suffix);
+    }
+
+    private String readText(File file) throws IOException {
+        if (!file.isFile()) return null;
+        long length = file.length();
+        if (length > OfflinePdfReader.MAX_TEXT_CHARS * 4L) throw new IOException("The saved review text is too large to open.");
+        try (InputStream input = new FileInputStream(file); ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            byte[] buffer = new byte[8192];
+            int count;
+            while ((count = input.read(buffer)) != -1) output.write(buffer, 0, count);
+            return new String(output.toByteArray(), StandardCharsets.UTF_8);
+        }
+    }
+
+    private void writeText(File file, String text) throws IOException {
+        if (text == null || text.length() > OfflinePdfReader.MAX_TEXT_CHARS) {
+            throw new IOException("The report text is too large to save.");
+        }
+        File temporary = new File(directory, UUID.randomUUID() + ".pending");
+        boolean complete = false;
+        File backup = new File(directory, UUID.randomUUID() + ".backup");
+        boolean backedUp = false;
+        try {
+            try (FileOutputStream output = new FileOutputStream(temporary)) {
+                output.write(text.getBytes(StandardCharsets.UTF_8));
+                output.getFD().sync();
+            }
+            if (file.exists()) {
+                if (!file.renameTo(backup)) throw new IOException("Unable to replace the saved report text.");
+                backedUp = true;
+            }
+            if (!temporary.renameTo(file)) {
+                if (backedUp) backup.renameTo(file);
+                throw new IOException("Unable to save local report text.");
+            }
+            complete = true;
+        } finally {
+            if (!complete) temporary.delete();
+            if (complete && backedUp) backup.delete();
+        }
     }
 }

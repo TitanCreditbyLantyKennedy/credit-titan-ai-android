@@ -4,12 +4,12 @@ Owner / Creator, Developer & Designer: **Lanty Kennedy**.
 
 ## Current implementation
 
-Version 1.0.3 / code 4 is an **offline Android foundation**, not a public production service. It preserves `com.credittitanai.app`, the shield, and the approved ice-blue/silver/navy palette. Five fixed tabs expose Home, Reports, Disputes, Coach, and More. More contains the action plan, bureaus, progress, card examples, Guardian, and privacy controls.
+Version 1.0.4 / code 5 is an **offline Android foundation**, not a public production service. It preserves `com.credittitanai.app`, the shield, and the approved ice-blue/silver/navy palette. Five fixed tabs expose Home, Reports, Disputes, Coach, and More. More contains the action plan, bureaus, progress, card examples, Guardian, and privacy controls. This source update has not been built or device-validated.
 
 | Area | Working locally | Still needed for live operation |
 | --- | --- | --- |
 | Dashboard | Clearly fictional score gauge, saved-plan progress, workspace counts | Consented score/report provider and model/version/date attribution |
-| Reports | Private PDF copying, type-header/size/count checks, bureau assignment, deletion, notes | PDF extraction and OCR, supported-format fixtures, cross-bureau normalized records, evidence citations, consented AI review |
+| Reports | Private PDF copying; bundled on-device OCR; editable, separately saved OCR corrections; bureau assignment, deletion, notes | Build/device validation; supported-format review; normalized account records; cross-bureau comparison and evidence links |
 | Disputes | Bureau selection, editable note-based draft, overwrite confirmation, reviewed text export | Multiple dispute records, evidence attachment, current verified addresses, user-approved mailing, delivery/response history |
 | Coach | Prepared educational topics and input-validated utilization calculator | Authenticated AI backend, grounded responses and refusal/escalation tests |
 | FICO Booster Plus | Six guidance dialogs, persistent completion, progress | No score prediction is implemented; future data must identify the scoring model |
@@ -21,11 +21,11 @@ The planned marketplace business model remains bank-paid advertising plus approv
 
 ## Compatibility
 
-`report_notes`, `dispute_draft`, `boost0..5`, and `goal0..3` retain their names and preference file `titan_local`. New report copies live under private `files/reports/`, with an assigned bureau stored under `bureau_<internal filename>`. No full original document filename is recorded. Android backup stays disabled. Uninstalling will remove this private workspace; use the signing continuity gates rather than telling users to uninstall for routine updates.
+`report_notes`, `dispute_draft`, `boost0..5`, and `goal0..3` retain their names and preference file `titan_local`. New report copies and the `.ocr.txt` / `.review.txt` companion files live under private `files/reports/`, with an assigned bureau stored under `bureau_<internal filename>`. No full original document filename is recorded. Removing a report also removes its OCR and reviewed text. Android backup stays disabled. Uninstalling will remove this private workspace; use the signing continuity gates rather than telling users to uninstall for routine updates.
 
 A new recipient selection applies to the next generated draft, not an existing edited draft. There is one saved draft in this foundation. Generating over it requires confirmation; exporting retains a copy outside app-private storage. Draft generation includes the user's notes verbatim and does not analyze them or establish a legal violation. No letter, application, or payment is sent.
 
-PDF import uses the Android document picker, copies off the UI thread, limits nine files to 20 MB each, requires a PDF header, and removes partial copies on handled failures. It does not validate full PDF structure or render/parse a report. Local deletion includes interrupted `.pending` files. Export is a user-selected plain-text file; exports and original source documents are not removed by clearing local workspace data.
+PDF import uses the Android document picker, copies off the UI thread, limits nine files to 20 MB each, requires a PDF header, and removes partial copies on handled failures. On-device OCR uses Android `PdfRenderer` and the bundled ML Kit Latin text-recognition model; it processes up to 60 pages and stores extracted text privately. The app warns that OCR may misread information and provides a separate editable reviewed-text copy. OCR is not account parsing, legal analysis, or cross-bureau comparison. Full PDF structure and extraction quality have not yet been device-validated. Local deletion includes interrupted `.pending` files. Export is a user-selected plain-text file; exports and original source documents are not removed by clearing workspace data.
 
 ## Verification
 
@@ -60,7 +60,7 @@ The tests require a genuinely new attached foreground activity after recreation,
 
 1. Complete manual document-picker/export round trips, physical-device compatibility checks and full accessibility coverage. Automated builds, lint, emulator interactions, genuine prior-source upgrades and compact/larger-text screenshot review are recorded above.
 2. Resolve installed-app signing identity and owner-controlled release key recovery/creation/backup. Run the real-key baseline upgrade gate in `APK-UPDATES.md`. Never commit keys, passwords, provider credentials, or consumer reports.
-3. Add normalized report/account/evidence records and a reproducible parser pipeline with synthetic/redacted fixtures for supported formats. Record extraction uncertainty; never silently treat unreadable PDFs as clean reports.
+3. Validate the new OCR flow on representative text and scanned PDFs, then build normalized account/evidence records around reviewed text. Record extraction uncertainty; never silently treat unreadable PDFs as clean reports.
 4. Add a secure authenticated backend for consented processing. Keep service credentials off Android. Define access control, rate limits, deletion/retention, redacted operational logs, provider failures, and incident recovery before connecting real consumers.
 5. Implement evidence-linked potential-inaccuracy review across Experian, Equifax and TransUnion. Users approve selected items and each bureau letter. Add structured multi-case status/history, verified delivery events, response tracking and reviewed deadline rules.
 6. Connect approved scoring/monitoring providers with explicit consent and data provenance. Add bank-paid marketplace partnerships and transparent paid placements. Validate real disclosure, error and cancellation flows.

@@ -38,6 +38,7 @@ public class MainActivity extends Activity {
     private LocalReports reports;
     private String page = "Dashboard", exportText = "";
     private static final java.util.concurrent.atomic.AtomicBoolean importing = new java.util.concurrent.atomic.AtomicBoolean();
+    private static final java.util.concurrent.atomic.AtomicBoolean processingReport = new java.util.concurrent.atomic.AtomicBoolean();
     private static java.lang.ref.WeakReference<MainActivity> visible = new java.lang.ref.WeakReference<>(null);
     private final ExecutorService io = Executors.newSingleThreadExecutor();
     private EditText editor;
@@ -66,7 +67,7 @@ public class MainActivity extends Activity {
             // During Android 7 relaunch, old-window cleanup can detach a dialog
             // opened inside onCreate. Restore only after the new decor attaches.
             getWindow().getDecorView().post(() -> {
-                if (!isFinishing() && !isDestroyed() && editor == null) edit(restoredEditorKey, restoredEditorText);
+                if (!isFinishing() && !isDestroyed() && editor == null) restoreEditor(restoredEditorKey, restoredEditorText);
             });
         }
     }
@@ -82,7 +83,7 @@ public class MainActivity extends Activity {
     }
     @Override protected void onResume() {
         super.onResume(); applyWindowColors(); visible = new java.lang.ref.WeakReference<>(this);
-        if (page.equals("Reports") && editor == null && !importing.get()) show("Reports");
+        if (page.equals("Reports") && editor == null && !importing.get() && !processingReport.get()) show("Reports");
     }
     private void applyWindowColors() {
         getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(NAVY));
@@ -217,11 +218,11 @@ public class MainActivity extends Activity {
         link(report, "Open report workspace", () -> show("Reports"));
     }
     private void reportPage() {
-        card("Keep your reports together", "Import a private PDF copy from your device or document provider. Reports stay in this app's private storage. Automated extraction, cross-bureau comparison, and AI analysis are not connected.");
+        card("Private report workspace", "PDFs stay on this device. Read report pages with bundled on-device OCR, then review and correct the extracted text. OCR can misread names, dates, and amounts. Cross-bureau comparison and live AI analysis are not connected.");
         action("Import a report PDF", () -> new AlertDialog.Builder(this).setTitle("Save a private PDF copy?")
                 .setMessage("Only import a report you are authorized to use. The app will copy it into private device storage and will not upload it. Up to nine PDFs, 20 MB each. A PDF header check does not verify its contents.")
                 .setNegativeButton("Cancel", null).setPositiveButton("Choose PDF", (d, w) -> {
-                    if (importing.get()) { note("Import in progress", "Please wait for the current import to finish."); return; }
+                    if (importing.get() || processingReport.get()) { note("Report task in progress", "Please wait for the current report task to finish."); return; }
                     try { startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT).setType("application/pdf").addCategory(Intent.CATEGORY_OPENABLE), IMPORT_REPORT); }
                     catch (android.content.ActivityNotFoundException unavailable) { note("File picker unavailable", "This device needs a document provider to choose a PDF."); }
                 }).show());
@@ -229,12 +230,20 @@ public class MainActivity extends Activity {
         if (copies.length == 0) card("No reports imported", "Start with a PDF from Experian, Equifax, or TransUnion. Importing a file does not connect a bureau.");
         for (int i = 0; i < copies.length; i++) {
             File file = copies[i]; String bureau = prefs.getString("bureau_" + file.getName(), "Unassigned bureau");
-            LinearLayout box = card("Local report " + (i + 1), bureau + " • " + Math.max(1, file.length() / 1024) + " KB\nStored only • Not analyzed");
+            String ocr;
+            String reviewed;
+            try { ocr = reports.readOcrText(file); reviewed = reports.readReviewedText(file); }
+            catch (IOException failure) { ocr = null; reviewed = null; }
+            String readingStatus = ocr == null ? "Text not read yet" : reviewed == null ? "Extracted text needs review" : "Reviewed text saved on device";
+            LinearLayout box = card("Local report " + (i + 1), bureau + " • " + Math.max(1, file.length() / 1024) + " KB\n" + readingStatus);
+            link(box, ocr == null ? "Read PDF on this device" : "Read PDF again", () -> readReport(file));
+            if (ocr != null) link(box, reviewed == null ? "Review and correct extracted text" : "Edit reviewed text", () -> editReportText(file, null));
             link(box, "Assign bureau", () -> new AlertDialog.Builder(this).setTitle("Which bureau issued this report?")
                     .setItems(CreditTools.BUREAUS, (d, n) -> { prefs.edit().putString("bureau_" + file.getName(), CreditTools.BUREAUS[n]).apply(); show("Reports"); }).show());
             link(box, "Remove local copy", () -> new AlertDialog.Builder(this).setTitle("Remove this local copy?")
                     .setMessage("The original file you selected will remain with its document provider.")
                     .setNegativeButton("Cancel", null).setPositiveButton("Remove", (d, w) -> {
+                        if (processingReport.get() || importing.get()) { note("Report task in progress", "Wait for the current report task to finish before removing a copy."); return; }
                         try { if (!reports.delete(file)) throw new IOException(); prefs.edit().remove("bureau_" + file.getName()).apply(); show("Reports"); }
                         catch (IOException failed) { note("Unable to remove copy", "Please try again."); }
                     }).show());
@@ -242,6 +251,73 @@ public class MainActivity extends Activity {
         card("Your report notes", prefs.getString("report_notes", "No notes saved yet. Note possible balance, date, status, duplicate-account, or identity inaccuracies for your review."));
         action("Edit report notes", () -> edit("report_notes", null));
         action("Review notes in Dispute Center", () -> show("Disputes"));
+    }
+    private void readReport(File file) {
+        if (importing.get() || !processingReport.compareAndSet(false, true)) {
+            note("Report task in progress", "Wait for the current report task to finish."); return;
+        }
+        Toast.makeText(this, "Reading report pages on this device…", Toast.LENGTH_LONG).show();
+        io.execute(() -> {
+            String message;
+            try {
+                String extracted = OfflinePdfReader.extract(file);
+                reports.saveOcrText(file, extracted);
+                message = "Text extracted on this device. Review it against the original PDF and correct any OCR mistakes before using it.";
+            } catch (IOException | SecurityException | IllegalArgumentException failure) {
+                message = failure.getMessage() == null ? "This PDF could not be read on this device." : failure.getMessage();
+            }
+            String status = message;
+            runOnUiThread(() -> {
+                processingReport.set(false);
+                MainActivity active = visible.get();
+                if (active != null && !active.isFinishing() && !active.isDestroyed()) {
+                    if (active.page.equals("Reports") && active.editor == null) active.show("Reports");
+                    active.note("On-device report reading", status);
+                }
+            });
+        });
+    }
+
+    private void editReportText(File file, String restored) {
+        try {
+            String current = restored;
+            if (current == null) {
+                current = reports.readReviewedText(file);
+                if (current == null) current = reports.readOcrText(file);
+            }
+            if (current == null) { note("No extracted text", "Read this report on the device first."); return; }
+            editorKey = "report_review:" + file.getName();
+            editorReport = file;
+            editor = new EditText(this); editor.setTextColor(NAVY); editor.setHintTextColor(Color.DKGRAY); editor.setTextSize(16);
+            editor.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);
+            editor.setFilters(new InputFilter[]{new InputFilter.LengthFilter(OfflinePdfReader.MAX_TEXT_CHARS)});
+            editor.setMinLines(8); editor.setGravity(Gravity.TOP); editor.setPadding(dp(18), dp(12), dp(18), dp(12));
+            editor.setHint("Compare with the original PDF and correct OCR mistakes. Do not share unnecessary identifiers.");
+            editor.setText(current);
+            AlertDialog dialog = new AlertDialog.Builder(this).setTitle("Review extracted report text").setView(editor)
+                    .setNegativeButton("Cancel", null).setPositiveButton("Save reviewed text", null).create();
+            editorDialog = dialog;
+            dialog.setOnDismissListener(d -> { editor = null; editorKey = null; editorReport = null; editorDialog = null; });
+            dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+                try {
+                    reports.saveReviewedText(editorReport, editor.getText().toString());
+                    dialog.dismiss(); show("Reports");
+                } catch (IOException failure) { editor.setError("Unable to save reviewed text. Please try again."); }
+            }));
+            dialog.show();
+        } catch (IOException failure) { note("Unable to open extracted text", "The saved local text could not be read. Try reading the PDF again."); }
+    }
+
+    private File editorReport;
+    private File findReport(String name) {
+        for (File file : reports.list()) if (file.getName().equals(name)) return file;
+        return null;
+    }
+    private void restoreEditor(String key, String text) {
+        if (key.startsWith("report_review:")) {
+            File file = findReport(key.substring("report_review:".length()));
+            if (file != null) editReportText(file, text);
+        } else edit(key, text);
     }
     private void edit(String key, String restored) {
         editorKey = key;
@@ -369,13 +445,13 @@ public class MainActivity extends Activity {
         }
     }
     private void privacy() {
-        card("Your data on this device", "This build has no internet permission. Notes, drafts, checklists, and imported PDFs stay in app-private storage. System screenshots are blocked. Device security still matters; storage is not protected by a separate app lock. Android backup is disabled.");
+        card("Your data on this device", "Report pages are read on this device. Imported PDFs, OCR text, corrections, notes, drafts, and checklists stay in app-private storage and are not uploaded. System screenshots are blocked. Device security still matters; storage is not protected by a separate app lock. Android backup is disabled.");
         card("You control exports", "Exporting a draft saves a plain-text copy in a location you choose. That copy is outside the app's private storage and is not removed when you clear this app's local data.");
-        card("Development status", "Offline foundation • Version 1.0.3\nReal AI analysis, bureau access, mailing services, alerts, and bank integrations need secure service connections before public launch.");
+        card("Development status", "Offline foundation • Version 1.0.4\nReport text is read on-device but still needs your review. Cross-bureau comparison, live AI analysis, bureau access, mailing services, alerts, and bank integrations are not connected.");
         action("Clear this app's local data", () -> new AlertDialog.Builder(this).setTitle("Delete your local workspace?")
-                .setMessage("This removes imported PDF copies, notes, the saved draft, and all checklist progress from this app. Your original files and exported copies will remain. This cannot be undone.")
+                .setMessage("This removes imported PDF copies, extracted and corrected OCR text, notes, the saved draft, and all checklist progress from this app. Your original files and exported copies will remain. This cannot be undone.")
                 .setNegativeButton("Cancel", null).setPositiveButton("Delete local data", (d, w) -> {
-                    if (importing.get()) { note("Import in progress", "Wait for the import to finish before clearing data."); return; }
+                    if (importing.get() || processingReport.get()) { note("Report task in progress", "Wait for report reading or import to finish before clearing data."); return; }
                     try { reports.clear(); }
                     catch (IOException failure) { note("Could not remove all reports", "Some local copies could not be removed. Please try again."); return; }
                     if (!prefs.edit().clear().commit()) { note("Could not clear saved data", "Please try again."); return; }

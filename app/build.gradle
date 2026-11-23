@@ -46,6 +46,12 @@ android {
     }
 }
 
+dependencies {
+    // The bundled Latin OCR model is packaged with the app, so report reading
+    // does not require Firebase, a runtime download, or a network connection.
+    implementation 'com.google.mlkit:text-recognition:16.0.1'
+}
+
 // Never fall back to a runner's random debug key for a release task.
 gradle.taskGraph.whenReady { graph ->
     if (graph.allTasks.any { it.project == project && it.name.toLowerCase().contains('release') } && !signingReady) {

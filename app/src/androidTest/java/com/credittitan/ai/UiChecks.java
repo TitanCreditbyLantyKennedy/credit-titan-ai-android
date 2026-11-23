@@ -4,6 +4,9 @@ import android.app.Activity;
 import android.app.Instrumentation;
 import android.content.Intent;
 import android.graphics.Bitmap;
+import android.graphics.Paint;
+import android.graphics.Typeface;
+import android.graphics.pdf.PdfDocument;
 import android.os.Bundle;
 import android.os.SystemClock;
 import android.view.WindowManager;
@@ -106,6 +109,40 @@ final class UiChecks {
         image.recycle();
         onMain(() -> activity.getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE));
     }
+    private File syntheticReport() throws Exception {
+        File directory = new File(test.getTargetContext().getFilesDir(), "reports");
+        if (!directory.isDirectory() && !directory.mkdirs()) throw new AssertionError("Cannot create synthetic report directory");
+        File file = new File(directory, "ci-synthetic-report.pdf");
+        file.delete();
+        PdfDocument document = new PdfDocument();
+        try {
+            PdfDocument.Page page = document.startPage(new PdfDocument.PageInfo.Builder(612, 792, 1).create());
+            Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            paint.setColor(android.graphics.Color.BLACK);
+            paint.setTypeface(Typeface.create("sans-serif", Typeface.BOLD));
+            paint.setTextSize(32);
+            page.getCanvas().drawText("SYNTHETIC CREDIT REPORT", 48, 100, paint);
+            paint.setTypeface(Typeface.create("sans-serif", Typeface.NORMAL));
+            paint.setTextSize(28);
+            page.getCanvas().drawText("Experian", 48, 180, paint);
+            page.getCanvas().drawText("Account: SAMPLE BANK", 48, 240, paint);
+            page.getCanvas().drawText("Balance: $1,234.56", 48, 300, paint);
+            document.finishPage(page);
+            try (FileOutputStream out = new FileOutputStream(file)) { document.writeTo(out); }
+        } finally { document.close(); }
+        return file;
+    }
+    private String waitForOcr(File report) throws Exception {
+        LocalReports reports = new LocalReports(test.getTargetContext().getFilesDir());
+        long deadline = SystemClock.elapsedRealtime() + 90_000;
+        String extracted = null;
+        while (SystemClock.elapsedRealtime() < deadline) {
+            extracted = reports.readOcrText(report);
+            if (extracted != null) return extracted;
+            SystemClock.sleep(250);
+        }
+        throw new AssertionError("On-device OCR did not save extracted text within 90 seconds");
+    }
     void run() throws Exception {
         try { runChecks(); }
         catch (Exception | AssertionError failure) {
@@ -126,7 +163,19 @@ final class UiChecks {
             if (bounds.isEmpty() || bounds.left < 0 || bounds.right > test.getTargetContext().getResources().getDisplayMetrics().widthPixels) throw new AssertionError("Navigation is clipped: " + label);
         }
         screenshot(activity, "dashboard");
-        click("Reports"); find("Keep your reports together");
+        File synthetic = syntheticReport();
+        click("Reports"); find("Private report workspace"); find("Local report 1");
+        click("Read PDF on this device");
+        String extracted = waitForOcr(synthetic);
+        String normalizedOcr = extracted.toUpperCase(java.util.Locale.ROOT);
+        if (!normalizedOcr.contains("SYNTHETIC") || !normalizedOcr.contains("EXPERIAN")
+                || !normalizedOcr.contains("1234")) throw new AssertionError("Synthetic report OCR missed expected text: " + extracted);
+        click("Text extracted on this device. Review it against the original PDF and correct any OCR mistakes before using it.");
+        click("Review and correct extracted text");
+        set("extracted report text", "SYNTHETIC CREDIT REPORT\nExperian\nManual correction confirmed");
+        click("Save reviewed text");
+        String reviewed = new LocalReports(test.getTargetContext().getFilesDir()).readReviewedText(synthetic);
+        if (reviewed == null || !reviewed.contains("Manual correction confirmed")) throw new AssertionError("Reviewed OCR correction was not saved");
         click("Edit report notes"); set("report notes", "My statement shows a different balance."); click("Save locally");
         find("My statement shows a different balance.");
         screenshot(activity, "reports");
