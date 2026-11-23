@@ -175,6 +175,7 @@ final class UiChecks {
         String normalizedOcr = extracted.toUpperCase(java.util.Locale.ROOT).replaceAll("[^A-Z0-9]", "");
         if (!normalizedOcr.contains("SYNTHETIC") || !normalizedOcr.contains("EXPERIAN")
                 || !normalizedOcr.contains("1234")) throw new AssertionError("Synthetic report OCR missed expected text: " + extracted);
+        click("CLOSE");
         click("Review and correct extracted text");
         set("extracted report text", "SYNTHETIC CREDIT REPORT\nExperian\nManual correction confirmed");
         click("Save reviewed text");
