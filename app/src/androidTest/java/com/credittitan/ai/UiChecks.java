@@ -139,6 +139,10 @@ final class UiChecks {
         while (SystemClock.elapsedRealtime() < deadline) {
             extracted = reports.readOcrText(report);
             if (extracted != null) return extracted;
+            String visible = describe(root());
+            if (visible.contains("On-device report reading")) {
+                throw new AssertionError("OCR failed before saving text. Visible result: " + visible);
+            }
             SystemClock.sleep(250);
         }
         throw new AssertionError("On-device OCR did not save extracted text within 90 seconds");
