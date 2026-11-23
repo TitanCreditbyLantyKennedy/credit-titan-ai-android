@@ -18,7 +18,7 @@ import java.io.IOException;
 /** OCR a private PDF locally. The returned text is unverified and must be reviewed. */
 public final class OfflinePdfReader {
     public static final int MAX_PAGES = 60;
-    public static final int MAX_TEXT_CHARS = 250_000;
+    public static final int MAX_TEXT_CHARS = LocalReports.MAX_TEXT_CHARS;
     private static final int MAX_RENDER_DIMENSION = 1800;
 
     private OfflinePdfReader() {}

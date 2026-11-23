@@ -8,6 +8,7 @@ import java.util.UUID;
 /** Private report files and on-device OCR text. Nothing is uploaded. */
 public final class LocalReports {
     public static final long MAX_BYTES = 20L * 1024 * 1024;
+    public static final int MAX_TEXT_CHARS = 250_000;
     private final File directory;
     public LocalReports(File files) { directory = new File(files, "reports"); }
 
@@ -100,7 +101,7 @@ public final class LocalReports {
     private String readText(File file) throws IOException {
         if (!file.isFile()) return null;
         long length = file.length();
-        if (length > OfflinePdfReader.MAX_TEXT_CHARS * 4L) throw new IOException("The saved review text is too large to open.");
+        if (length > MAX_TEXT_CHARS * 4L) throw new IOException("The saved review text is too large to open.");
         try (InputStream input = new FileInputStream(file); ByteArrayOutputStream output = new ByteArrayOutputStream()) {
             byte[] buffer = new byte[8192];
             int count;
@@ -110,7 +111,7 @@ public final class LocalReports {
     }
 
     private void writeText(File file, String text) throws IOException {
-        if (text == null || text.length() > OfflinePdfReader.MAX_TEXT_CHARS) {
+        if (text == null || text.length() > MAX_TEXT_CHARS) {
             throw new IOException("The report text is too large to save.");
         }
         File temporary = new File(directory, UUID.randomUUID() + ".pending");
