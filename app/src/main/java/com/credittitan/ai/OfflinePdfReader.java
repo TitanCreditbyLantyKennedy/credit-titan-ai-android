@@ -1,6 +1,8 @@
 package com.credittitan.ai;
 
 import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.Matrix;
 import android.graphics.pdf.PdfRenderer;
 import android.os.ParcelFileDescriptor;
@@ -44,6 +46,7 @@ public final class OfflinePdfReader {
                     int height = Math.max(1, Math.round(sourceHeight * scale));
                     Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
                     try {
+                        new Canvas(bitmap).drawColor(Color.WHITE);
                         Matrix transform = new Matrix();
                         transform.setScale(width / (float) sourceWidth, height / (float) sourceHeight);
                         page.render(bitmap, null, transform, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY);

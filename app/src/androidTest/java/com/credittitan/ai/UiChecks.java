@@ -117,6 +117,7 @@ final class UiChecks {
         PdfDocument document = new PdfDocument();
         try {
             PdfDocument.Page page = document.startPage(new PdfDocument.PageInfo.Builder(612, 792, 1).create());
+            page.getCanvas().drawColor(android.graphics.Color.WHITE);
             Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
             paint.setColor(android.graphics.Color.BLACK);
             paint.setTypeface(Typeface.create("sans-serif", Typeface.BOLD));
