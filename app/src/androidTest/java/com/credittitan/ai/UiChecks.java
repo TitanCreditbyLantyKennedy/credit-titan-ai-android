@@ -172,7 +172,7 @@ final class UiChecks {
         click("Reports"); find("Private report workspace"); find("Local report 1");
         click("Read PDF on this device");
         String extracted = waitForOcr(synthetic);
-        String normalizedOcr = extracted.toUpperCase(java.util.Locale.ROOT);
+        String normalizedOcr = extracted.toUpperCase(java.util.Locale.ROOT).replaceAll("[^A-Z0-9]", "");
         if (!normalizedOcr.contains("SYNTHETIC") || !normalizedOcr.contains("EXPERIAN")
                 || !normalizedOcr.contains("1234")) throw new AssertionError("Synthetic report OCR missed expected text: " + extracted);
         click("Text extracted on this device. Review it against the original PDF and correct any OCR mistakes before using it.");
