@@ -1,6 +1,6 @@
 # Credit Titan AI APK updates
 
-Issue #4 implementation. Package stays `com.credittitanai.app`; namespace and launcher stay `com.credittitan.ai.MainActivity`. The production Java source, shield icon, Lanty Kennedy attribution, and ice-blue/silver/navy UI are unchanged.
+Issue #4 implementation. Package stays `com.credittitanai.app`; namespace and launcher stay `com.credittitan.ai.MainActivity`. The shield icon, Lanty Kennedy attribution, and approved ice-blue/silver/navy palette are preserved. See DEVELOPMENT-STATUS.md for the current offline workspace and UI implementation.
 
 ## What caused the risk
 
@@ -65,7 +65,7 @@ Only after all these checks pass does the workflow retain the candidate APK and 
 
 ## Version discipline
 
-`version.properties` is the source of the next version, initially code 3/name 1.0.2. Increment the code for every distributed binary; PR checks require an increase for app changes. The release gate additionally requires a code strictly greater than the approved previous APK. Range is 1..2100000000. Do not derive codes from workflow run numbers or timestamps. `TITAN_VERSION_CODE` is only used for disposable test fixtures; the real release verifies the APK code against the source file.
+`version.properties` is the source of the next version, currently code 4/name 1.0.3. Increment the code for every distributed binary; PR checks require an increase for app changes. The release gate additionally requires a code strictly greater than the approved previous APK. Range is 1..2100000000. Do not derive codes from workflow run numbers or timestamps. `TITAN_VERSION_CODE` is only used for disposable test fixtures; the real release verifies the APK code against the source file.
 
 After an approved distribution, archive that exact APK and verification JSON durably and update the approved baseline URL/hash before validating the next release. Serializing release validation avoids concurrent jobs, but distribution remains a separate human-controlled step: never distribute two different binaries under the same code, including reruns. Require the canonical tests as branch checks and review changes to signing settings, certificate pin and workflow.
 

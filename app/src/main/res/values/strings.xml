@@ -1,0 +1,3 @@
+<resources>
+    <string name="utilization_result">Reported utilization: %1$s\nThis ratio is not a score prediction.</string>
+</resources>

@@ -38,6 +38,8 @@ jobs:
         with:
           gradle-version: '8.9'
           cache-disabled: true
+      - name: Test offline tools and private file limits
+        run: bash scripts/test_offline.sh
       - name: Test APK policy
         run: python3 -m unittest discover -s tests -v
       - name: Check source version on pull requests
@@ -50,7 +52,7 @@ jobs:
       - name: Verify fixture metadata and continuity
         run: |
           CERT=$(python3 -c 'import sys; sys.path.insert(0,"scripts"); from verify_apk import inspect; print(inspect(".validation/previous.apk")["certificate_sha256"])')
-          python3 scripts/verify_apk.py .validation/candidate.apk --previous .validation/previous.apk --certificate "$CERT" --version-code 3
+          python3 scripts/verify_apk.py .validation/candidate.apk --previous .validation/previous.apk --certificate "$CERT" --version-code "$(sed -n 's/^versionCode=//p' version.properties)"
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -61,7 +63,13 @@ jobs:
           api-level: ${{ matrix.api }}
           arch: x86_64
           disable-animations: true
-          script: python3 scripts/test_upgrade.py --previous .validation/previous.apk --candidate .validation/candidate.apk --mismatch .validation/mismatch.apk --probe .validation/probe.apk
+          script: python3 scripts/test_upgrade.py --previous .validation/previous.apk --candidate .validation/candidate.apk --mismatch .validation/mismatch.apk --probe .validation/probe.apk --font-scale ${{ matrix.api == 35 && '1.3' || '1.0' }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: CreditTitanAI-UI-review-API-${{ matrix.api }}
+          path: ui-screenshots/*.png
+          if-no-files-found: ignore
       - name: Remove test keys
         if: always()
         run: rm -rf .validation

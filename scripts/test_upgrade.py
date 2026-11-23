@@ -21,7 +21,8 @@ def probe(phase):
     code, output = adb('shell', 'am', 'instrument', '-w', '-e', 'phase', phase,
                        PACKAGE + '.test/com.credittitan.ai.UpgradeProbe')
     if code or 'result=PASS' not in output or 'INSTRUMENTATION_CODE: -1' not in output:
-        raise AssertionError(output)
+        _, crash = adb('logcat', '-d', '-b', 'crash')
+        raise AssertionError(output + '\nCrash diagnostics:\n' + crash)
 
 
 def launch():
@@ -53,7 +54,11 @@ def main():
     p = argparse.ArgumentParser()
     for name in ('previous', 'candidate', 'mismatch', 'probe'):
         p.add_argument('--' + name, required=True)
+    p.add_argument('--font-scale', choices=['1.0', '1.3'], default='1.0')
     args = p.parse_args()
+    _, emulator = adb('shell', 'getprop', 'ro.kernel.qemu')
+    if emulator.strip() != '1':
+        raise AssertionError('Tests require a disposable Android emulator; refusing a physical device')
     old, new, wrong = inspect(args.previous), inspect(args.candidate), inspect(args.mismatch)
     if not old['version_code'] < new['version_code'] == wrong['version_code']:
         raise AssertionError('Test APK versions are invalid')
@@ -62,6 +67,9 @@ def main():
     _, existing = adb('shell', 'pm', 'path', PACKAGE)
     if 'package:' in existing:
         raise AssertionError('Requires a fresh disposable emulator; will not uninstall')
+    code, output = adb('shell', 'settings', 'put', 'system', 'font_scale', args.font_scale)
+    if code:
+        raise AssertionError(output)
     install(args.previous)
     install(args.probe)
     probe('seed')
@@ -71,6 +79,16 @@ def main():
     launch()
     reject(args.previous, 'INSTALL_FAILED_VERSION_DOWNGRADE', new['version_code'])
     reject(args.mismatch, 'INSTALL_FAILED_UPDATE_INCOMPATIBLE', new['version_code'])
+    try:
+        probe('ui')
+    finally:
+        # The emulator action shuts down before subsequent workflow steps.
+        # Copy test-only screenshots while this emulator is still alive.
+        from pathlib import Path
+        Path('ui-screenshots').mkdir(exist_ok=True)
+        _, capture = adb('pull', '/sdcard/Android/data/' + PACKAGE + '/files/.', 'ui-screenshots')
+        print(capture)
+    print('PASS: UI navigation, notes, bureau drafts, unsaved editor recreation, calculator, checklist, privacy cancel')
     print('PASS: fresh install, launch, in-place upgrade, saved notes/draft/checklists, downgrade and wrong-key rejection')
 
 
